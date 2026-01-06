@@ -1,0 +1,10 @@
+@model IEnumerable<CanteenRFID.Web.Controllers.ConsumptionRow>
+<h2>Verbrauch pro Person</h2>
+<table class="table table-striped">
+    <thead><tr><th>Personalnr</th><th>Name</th><th>Frühstück</th><th>Mittag</th><th>Abend</th><th>Snack</th><th>Unbekannt</th></tr></thead>
+    <tbody>
+    @foreach(var r in Model){
+        <tr><td>@r.PersonnelNo</td><td>@r.Name</td><td>@r.Breakfast</td><td>@r.Lunch</td><td>@r.Dinner</td><td>@r.Snack</td><td>@r.Unknown</td></tr>
+    }
+    </tbody>
+</table>

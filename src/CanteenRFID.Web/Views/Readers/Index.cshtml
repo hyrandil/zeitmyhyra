@@ -1,17 +1,38 @@
-@model IEnumerable<Reader>
+@model IEnumerable<CanteenRFID.Web.Models.ReaderStatusViewModel>
 <h2>Reader</h2>
 @if(TempData["ApiKey"] != null){<div class="alert alert-success">Neuer API Key: <code>@TempData["ApiKey"]</code></div>}
 @if(TempData["Info"] != null){<div class="alert alert-info">@TempData["Info"]</div>}
 <a class="btn btn-success mb-3" href="/Readers/Create">Neu</a>
-<table class="table table-striped">
-    <thead><tr><th>ID</th><th>Name</th><th>Standort</th><th>Aktiv</th><th></th></tr></thead>
+<table class="table table-striped align-middle">
+    <thead><tr><th>ID</th><th>Name</th><th>Standort</th><th>Status</th><th>Aktiv</th><th class="text-end">Aktionen</th></tr></thead>
     <tbody>
     @foreach(var r in Model){
         <tr>
-            <td>@r.ReaderId</td><td>@r.Name</td><td>@r.Location</td><td>@(r.IsActive?"Ja":"Nein")</td>
+            <td>@r.Reader.ReaderId</td><td>@r.Reader.Name</td><td>@r.Reader.Location</td>
             <td>
-                <form method="post" asp-action="Regenerate" asp-route-id="@r.Id" onsubmit="return confirm('API Key neu generieren?');">
+                @if (r.IsOnline())
+                {
+                    <span class="badge bg-success">Online</span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary">Offline</span>
+                }
+                <div class="small text-muted">Letzter Kontakt: @(r.LastSeenUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss") ?? "-")</div>
+            </td>
+            <td>@(r.Reader.IsActive?"Ja":"Nein")</td>
+            <td class="text-end d-flex gap-2 justify-content-end">
+                <form method="post" asp-action="Toggle" asp-route-id="@r.Reader.Id">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-sm @(r.Reader.IsActive ? "btn-outline-secondary" : "btn-outline-success")" type="submit">@(r.Reader.IsActive ? "Deaktivieren" : "Aktivieren")</button>
+                </form>
+                <form method="post" asp-action="Regenerate" asp-route-id="@r.Reader.Id" onsubmit="return confirm('API Key neu generieren?');">
+                    @Html.AntiForgeryToken()
                     <button class="btn btn-sm btn-warning" type="submit">API Key regenerieren</button>
+                </form>
+                <form method="post" asp-action="Delete" asp-route-id="@r.Reader.Id" onsubmit="return confirm('Reader löschen?');">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-sm btn-danger" type="submit">Löschen</button>
                 </form>
             </td>
         </tr>

@@ -1,7 +1,8 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using CanteenRFID.Core.Enums;
+using System.Text.Json.Serialization;
 
+Console.WriteLine("CanteenRFID Reader Client gestartet (Keyboard Wedge)");
 var configPath = Path.Combine(AppContext.BaseDirectory, "readerclientsettings.json");
 if (!File.Exists(configPath))
 {
@@ -14,74 +15,139 @@ var settings = JsonSerializer.Deserialize<ReaderClientSettings>(File.ReadAllText
 Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "queue"));
 var queueFile = Path.Combine(AppContext.BaseDirectory, "queue", "queue.jsonl");
 
-Console.WriteLine("CanteenRFID Reader Client gestartet. Modus Keyboard Wedge.");
-Console.WriteLine("Scanne UID (ENTER zum bestätigen).");
-
-var httpClient = new HttpClient
-{
-    BaseAddress = new Uri(settings.ServerUrl)
-};
+var httpClient = new HttpClient { BaseAddress = new Uri(settings.ServerUrl) };
 httpClient.DefaultRequestHeaders.Add("X-API-KEY", settings.ApiKey);
 
-await FlushQueueAsync();
+var queue = new StampQueue(queueFile);
+var sender = new StampSender(httpClient);
 
-string? line;
-while ((line = Console.ReadLine()) != null)
+await queue.FlushAsync(async stamp => await sender.TrySendAsync(stamp));
+
+Console.WriteLine("Bereit. UID einscannen und mit ENTER bestätigen (Keyboard-Wedge-Modus).");
+IUidSource source = new KeyboardWedgeSource(settings.Terminator);
+
+await foreach (var uid in source.ReadAsync())
 {
-    line = line.Trim();
-    if (string.IsNullOrEmpty(line)) continue;
+    if (string.IsNullOrWhiteSpace(uid)) continue;
     var stamp = new StampRequest
     {
-        Uid = line,
+        Uid = uid.Trim(),
         ReaderId = settings.ReaderId,
-        TimestampUtc = DateTime.UtcNow
+        TimestampUtc = DateTime.UtcNow,
+        Meta = new Dictionary<string, string> { { "source", "keyboardWedge" } }
     };
-    if (!await TrySendAsync(stamp))
+
+    var sent = await sender.TrySendAsync(stamp);
+    if (!sent)
     {
-        await File.AppendAllTextAsync(queueFile, JsonSerializer.Serialize(stamp) + "\n");
+        await queue.EnqueueAsync(stamp);
         Console.WriteLine("Server offline, in Queue abgelegt.");
     }
 }
 
-async Task<bool> TrySendAsync(StampRequest request)
+public interface IUidSource
 {
-    try
-    {
-        var response = await httpClient.PostAsJsonAsync("/api/v1/stamps", request);
-        if (response.IsSuccessStatusCode)
-        {
-            Console.WriteLine($"Gesendet: {request.Uid} -> {DateTime.Now}");
-            return true;
-        }
-    }
-    catch
-    {
-        // ignored
-    }
-    return false;
+    IAsyncEnumerable<string> ReadAsync();
 }
 
-async Task FlushQueueAsync()
+public class KeyboardWedgeSource : IUidSource
 {
-    if (!File.Exists(queueFile)) return;
-    var lines = await File.ReadAllLinesAsync(queueFile);
-    var remaining = new List<string>();
-    foreach (var l in lines)
+    private readonly string _terminator;
+
+    public KeyboardWedgeSource(string terminator)
+    {
+        _terminator = terminator;
+    }
+
+    public async IAsyncEnumerable<string> ReadAsync()
+    {
+        while (true)
+        {
+            var line = await Task.Run(Console.ReadLine);
+            if (line == null)
+            {
+                yield break;
+            }
+
+            if (line.EndsWith(_terminator))
+            {
+                yield return line[..^_terminator.Length];
+            }
+            else
+            {
+                yield return line;
+            }
+        }
+    }
+}
+
+public class StampSender
+{
+    private readonly HttpClient _client;
+
+    public StampSender(HttpClient client)
+    {
+        _client = client;
+    }
+
+    public async Task<bool> TrySendAsync(StampRequest request)
     {
         try
         {
-            var stamp = JsonSerializer.Deserialize<StampRequest>(l);
-            if (stamp != null && await TrySendAsync(stamp))
+            var response = await _client.PostAsJsonAsync("/api/v1/stamps", request);
+            if (response.IsSuccessStatusCode)
             {
-                continue;
+                Console.WriteLine($"Gesendet: {request.Uid} [{request.ReaderId}] {DateTime.Now}");
+                return true;
             }
+            Console.WriteLine($"Fehler beim Senden: {response.StatusCode}");
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"Sendeproblem: {ex.Message}");
         }
-        remaining.Add(l);
+        return false;
     }
-    await File.WriteAllLinesAsync(queueFile, remaining);
+}
+
+public class StampQueue
+{
+    private readonly string _filePath;
+    private readonly JsonSerializerOptions _options = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+
+    public StampQueue(string filePath)
+    {
+        _filePath = filePath;
+    }
+
+    public async Task EnqueueAsync(StampRequest request)
+    {
+        await File.AppendAllTextAsync(_filePath, JsonSerializer.Serialize(request, _options) + "\n");
+    }
+
+    public async Task FlushAsync(Func<StampRequest, Task<bool>> sender)
+    {
+        if (!File.Exists(_filePath)) return;
+        var lines = await File.ReadAllLinesAsync(_filePath);
+        var remaining = new List<string>();
+        foreach (var line in lines)
+        {
+            try
+            {
+                var stamp = JsonSerializer.Deserialize<StampRequest>(line, _options);
+                if (stamp != null && await sender(stamp))
+                {
+                    continue;
+                }
+            }
+            catch
+            {
+                // ignore malformed line
+            }
+            remaining.Add(line);
+        }
+        await File.WriteAllLinesAsync(_filePath, remaining);
+    }
 }
 
 public record ReaderClientSettings
@@ -89,6 +155,7 @@ public record ReaderClientSettings
     public string ServerUrl { get; init; } = "http://localhost:5000";
     public string ApiKey { get; init; } = "CHANGE_ME";
     public string ReaderId { get; init; } = "READER-01";
+    public string Terminator { get; init; } = "";
 }
 
 public record StampRequest
@@ -96,4 +163,5 @@ public record StampRequest
     public string Uid { get; init; } = string.Empty;
     public string ReaderId { get; init; } = string.Empty;
     public DateTime? TimestampUtc { get; init; }
+    public Dictionary<string, string>? Meta { get; init; }
 }

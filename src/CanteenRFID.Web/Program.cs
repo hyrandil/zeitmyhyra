@@ -26,6 +26,7 @@ builder.Host.UseSerilog();
 
 builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection("Admin"));
 builder.Services.Configure<TimezoneOptions>(builder.Configuration.GetSection("Timezone"));
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -50,6 +51,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IApiKeyHasher, Sha256ApiKeyHasher>();
 builder.Services.AddScoped<MealRuleEngineFactory>();
 builder.Services.AddScoped<StampService>();
+builder.Services.AddScoped<ApiKeyValidator>();
 
 var app = builder.Build();
 
@@ -83,47 +85,26 @@ app.MapControllers();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.MapPost("/api/v1/stamps", async ([FromBody] StampRequest request, HttpContext context, ApplicationDbContext db, IApiKeyHasher hasher, IConfiguration configuration) =>
+var api = app.MapGroup("/api/v1");
+
+api.MapPost("/stamps", async ([FromBody] StampRequest request, HttpContext context, ApiKeyValidator validator, StampService stampService) =>
 {
     if (!context.Request.Headers.TryGetValue("X-API-KEY", out var apiKey) || string.IsNullOrWhiteSpace(apiKey))
     {
         return Results.Unauthorized();
     }
 
-    var reader = await db.Readers.FirstOrDefaultAsync(r => r.ApiKeyHash == hasher.Hash(apiKey!) && r.IsActive);
+    var reader = await validator.ValidateAsync(apiKey!);
     if (reader is null)
     {
         return Results.Unauthorized();
     }
 
-    var tzOptions = configuration.GetSection("Timezone").Get<TimezoneOptions>() ?? new TimezoneOptions();
-    var tz = TimeZoneInfo.FindSystemTimeZoneById(tzOptions.Windows ?? "W. Europe Standard Time");
-    var timestampUtc = request.TimestampUtc ?? DateTime.UtcNow;
-    var timestampLocal = TimeZoneInfo.ConvertTimeFromUtc(timestampUtc, tz);
-
-    var engine = new MealRuleEngine(await db.MealRules.Where(r => r.IsActive).ToListAsync());
-    var mealType = engine.ResolveMealType(timestampLocal);
-
-    var user = await db.Users.FirstOrDefaultAsync(u => u.Uid == request.Uid);
-
-    var stamp = new Stamp
-    {
-        TimestampUtc = timestampUtc,
-        TimestampLocal = timestampLocal,
-        UidRaw = request.Uid,
-        ReaderId = request.ReaderId,
-        MealType = mealType,
-        UserId = user?.Id,
-        CreatedAtUtc = DateTime.UtcNow
-    };
-
-    db.Stamps.Add(stamp);
-    await db.SaveChangesAsync();
-
-    return Results.Created($"/api/v1/stamps/{stamp.Id}", stamp);
+    var saved = await stampService.AddStampAsync(request.Uid, request.ReaderId ?? reader.ReaderId, request.TimestampUtc);
+    return Results.Created($"/api/v1/stamps/{saved.Id}", saved);
 }).WithTags("Stamps");
 
-app.MapGet("/api/v1/stamps", async (DateTime? from, DateTime? to, Guid? userId, string? uid, string? readerId, MealType? mealType, ApplicationDbContext db) =>
+api.MapGet("/stamps", async ([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] Guid? userId, [FromQuery] string? uid, [FromQuery] string? readerId, [FromQuery] MealType? mealType, [FromQuery] string? search, ApplicationDbContext db) =>
 {
     var query = db.Stamps.Include(s => s.User).AsQueryable();
     if (from.HasValue) query = query.Where(s => s.TimestampUtc >= from);
@@ -132,13 +113,156 @@ app.MapGet("/api/v1/stamps", async (DateTime? from, DateTime? to, Guid? userId, 
     if (!string.IsNullOrWhiteSpace(uid)) query = query.Where(s => s.UidRaw == uid);
     if (!string.IsNullOrWhiteSpace(readerId)) query = query.Where(s => s.ReaderId == readerId);
     if (mealType.HasValue) query = query.Where(s => s.MealType == mealType);
-    var items = await query.OrderByDescending(s => s.TimestampUtc).Take(200).ToListAsync();
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+        query = query.Where(s => s.UidRaw.Contains(search) || s.ReaderId.Contains(search) || (s.User != null && (s.User.FirstName + " " + s.User.LastName).Contains(search)));
+    }
+
+    var items = await query.OrderByDescending(s => s.TimestampUtc).Take(500).ToListAsync();
     return Results.Ok(items);
-});
+}).RequireAuthorization().WithTags("Stamps");
+
+api.MapGet("/users", async ([FromQuery] string? search, [FromQuery] bool? activeOnly, ApplicationDbContext db) =>
+{
+    var query = db.Users.AsQueryable();
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+        query = query.Where(u => u.FirstName.Contains(search) || u.LastName.Contains(search) || u.PersonnelNo.Contains(search) || (u.Uid != null && u.Uid.Contains(search)));
+    }
+
+    if (activeOnly == true)
+    {
+        query = query.Where(u => u.IsActive);
+    }
+
+    var items = await query.OrderBy(u => u.LastName).ToListAsync();
+    return Results.Ok(items);
+}).RequireAuthorization().WithTags("Users");
+
+api.MapPost("/users", async ([FromBody] User user, ApplicationDbContext db) =>
+{
+    if (await db.Users.AnyAsync(u => u.PersonnelNo == user.PersonnelNo))
+    {
+        return Results.BadRequest("Personalnummer bereits vergeben");
+    }
+    if (!string.IsNullOrWhiteSpace(user.Uid) && await db.Users.AnyAsync(u => u.Uid == user.Uid))
+    {
+        return Results.BadRequest("UID bereits vergeben");
+    }
+    db.Users.Add(user);
+    await db.SaveChangesAsync();
+    return Results.Created($"/api/v1/users/{user.Id}", user);
+}).RequireAuthorization("AdminOnly").WithTags("Users");
+
+api.MapPut("/users/{id:guid}", async (Guid id, [FromBody] User user, ApplicationDbContext db) =>
+{
+    var existing = await db.Users.FindAsync(id);
+    if (existing == null) return Results.NotFound();
+    if (await db.Users.AnyAsync(u => u.PersonnelNo == user.PersonnelNo && u.Id != id))
+    {
+        return Results.BadRequest("Personalnummer bereits vergeben");
+    }
+    if (!string.IsNullOrWhiteSpace(user.Uid) && await db.Users.AnyAsync(u => u.Uid == user.Uid && u.Id != id))
+    {
+        return Results.BadRequest("UID bereits vergeben");
+    }
+    existing.FirstName = user.FirstName;
+    existing.LastName = user.LastName;
+    existing.PersonnelNo = user.PersonnelNo;
+    existing.Uid = user.Uid;
+    existing.IsActive = user.IsActive;
+    await db.SaveChangesAsync();
+    return Results.Ok(existing);
+}).RequireAuthorization("AdminOnly").WithTags("Users");
+
+api.MapDelete("/users/{id:guid}", async (Guid id, ApplicationDbContext db) =>
+{
+    var user = await db.Users.FindAsync(id);
+    if (user == null) return Results.NotFound();
+    db.Users.Remove(user);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization("AdminOnly").WithTags("Users");
+
+api.MapGet("/mealrules", async (ApplicationDbContext db) =>
+{
+    var rules = await db.MealRules.OrderByDescending(r => r.Priority).ToListAsync();
+    return Results.Ok(rules);
+}).RequireAuthorization().WithTags("MealRules");
+
+api.MapPost("/mealrules", async ([FromBody] MealRule rule, ApplicationDbContext db) =>
+{
+    db.MealRules.Add(rule);
+    await db.SaveChangesAsync();
+    return Results.Created($"/api/v1/mealrules/{rule.Id}", rule);
+}).RequireAuthorization("AdminOnly").WithTags("MealRules");
+
+api.MapPut("/mealrules/{id:guid}", async (Guid id, [FromBody] MealRule rule, ApplicationDbContext db) =>
+{
+    var existing = await db.MealRules.FindAsync(id);
+    if (existing == null) return Results.NotFound();
+    existing.Name = rule.Name;
+    existing.MealType = rule.MealType;
+    existing.StartTimeLocal = rule.StartTimeLocal;
+    existing.EndTimeLocal = rule.EndTimeLocal;
+    existing.Priority = rule.Priority;
+    existing.DaysOfWeekMask = rule.DaysOfWeekMask;
+    existing.IsActive = rule.IsActive;
+    await db.SaveChangesAsync();
+    return Results.Ok(existing);
+}).RequireAuthorization("AdminOnly").WithTags("MealRules");
+
+api.MapDelete("/mealrules/{id:guid}", async (Guid id, ApplicationDbContext db) =>
+{
+    var rule = await db.MealRules.FindAsync(id);
+    if (rule == null) return Results.NotFound();
+    db.MealRules.Remove(rule);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization("AdminOnly").WithTags("MealRules");
+
+api.MapPost("/mealrules/recalculate", async ([FromBody] RecalculateRequest model, ApplicationDbContext db) =>
+{
+    var engine = new MealRuleEngine(await db.MealRules.Where(r => r.IsActive).ToListAsync());
+    var stamps = await db.Stamps.Where(s => s.TimestampUtc >= model.From && s.TimestampUtc <= model.To).ToListAsync();
+    foreach (var stamp in stamps)
+    {
+        stamp.MealType = engine.ResolveMealType(stamp.TimestampLocal);
+    }
+    await db.SaveChangesAsync();
+    return Results.Ok(new { Updated = stamps.Count });
+}).RequireAuthorization("AdminOnly").WithTags("MealRules");
+
+api.MapGet("/readers", async (ApplicationDbContext db) =>
+{
+    var readers = await db.Readers.OrderBy(r => r.ReaderId).ToListAsync();
+    return Results.Ok(readers);
+}).RequireAuthorization().WithTags("Readers");
+
+api.MapPost("/readers", async ([FromBody] Reader reader, IApiKeyHasher hasher, ApplicationDbContext db) =>
+{
+    var apiKey = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+    reader.ApiKeyHash = hasher.Hash(apiKey);
+    db.Readers.Add(reader);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { reader.Id, ApiKey = apiKey });
+}).RequireAuthorization("AdminOnly").WithTags("Readers");
+
+api.MapPost("/readers/{id:guid}/regenerate", async (Guid id, IApiKeyHasher hasher, ApplicationDbContext db) =>
+{
+    var reader = await db.Readers.FindAsync(id);
+    if (reader == null) return Results.NotFound();
+    var apiKey = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+    reader.ApiKeyHash = hasher.Hash(apiKey);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { reader.Id, ApiKey = apiKey });
+}).RequireAuthorization("AdminOnly").WithTags("Readers");
 
 app.Run();
 
-public record StampRequest(string Uid, string ReaderId, DateTime? TimestampUtc, Dictionary<string, string>? Meta);
+public record StampRequest(string Uid, string? ReaderId, DateTime? TimestampUtc, Dictionary<string, string>? Meta);
+
+public record RecalculateRequest(DateTime From, DateTime To);
 
 public record AdminOptions
 {
@@ -218,5 +342,23 @@ public class StampService
         _db.Stamps.Add(stamp);
         await _db.SaveChangesAsync();
         return stamp;
+    }
+}
+
+public class ApiKeyValidator
+{
+    private readonly ApplicationDbContext _db;
+    private readonly IApiKeyHasher _hasher;
+
+    public ApiKeyValidator(ApplicationDbContext db, IApiKeyHasher hasher)
+    {
+        _db = db;
+        _hasher = hasher;
+    }
+
+    public async Task<Reader?> ValidateAsync(string apiKey)
+    {
+        var hash = _hasher.Hash(apiKey);
+        return await _db.Readers.FirstOrDefaultAsync(r => r.ApiKeyHash == hash && r.IsActive);
     }
 }

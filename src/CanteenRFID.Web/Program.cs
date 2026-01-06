@@ -44,7 +44,7 @@ Directory.CreateDirectory(dataDir);
 var dbPath = Path.Combine(dataDir, "canteen.db");
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite($"Data Source={dbPath}"));
 
-builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
+builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

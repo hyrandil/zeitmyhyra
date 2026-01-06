@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 
 Console.WriteLine("CanteenRFID Reader Client gestartet (Keyboard Wedge)");
 var configPath = Path.Combine(AppContext.BaseDirectory, "readerclientsettings.json");
@@ -20,6 +21,17 @@ httpClient.DefaultRequestHeaders.Add("X-API-KEY", settings.ApiKey);
 
 var queue = new StampQueue(queueFile);
 var sender = new StampSender(httpClient);
+
+var pingInterval = Math.Max(5, settings.PingIntervalSeconds);
+var pingCts = new CancellationTokenSource();
+var pingTask = Task.Run(async () =>
+{
+    var timer = new PeriodicTimer(TimeSpan.FromSeconds(pingInterval));
+    while (await timer.WaitForNextTickAsync(pingCts.Token))
+    {
+        await sender.TryPingAsync(settings.ReaderId);
+    }
+}, pingCts.Token);
 
 await queue.FlushAsync(async stamp => await sender.TrySendAsync(stamp));
 
@@ -43,6 +55,15 @@ await foreach (var uid in source.ReadAsync())
         await queue.EnqueueAsync(stamp);
         Console.WriteLine("Server offline, in Queue abgelegt.");
     }
+}
+
+pingCts.Cancel();
+try
+{
+    await pingTask;
+}
+catch (TaskCanceledException)
+{
 }
 
 public interface IUidSource
@@ -108,6 +129,25 @@ public class StampSender
         }
         return false;
     }
+
+    public async Task<bool> TryPingAsync(string readerId)
+    {
+        try
+        {
+            var response = await _client.PostAsJsonAsync("/api/v1/readers/ping", new ReaderPingRequest(readerId));
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Ping gesendet [{readerId}] {DateTime.Now}");
+                return true;
+            }
+            Console.WriteLine($"Ping fehlgeschlagen: {response.StatusCode}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ping-Problem: {ex.Message}");
+        }
+        return false;
+    }
 }
 
 public class StampQueue
@@ -156,6 +196,7 @@ public record ReaderClientSettings
     public string ApiKey { get; init; } = "CHANGE_ME";
     public string ReaderId { get; init; } = "READER-01";
     public string Terminator { get; init; } = "";
+    public int PingIntervalSeconds { get; init; } = 60;
 }
 
 public record StampRequest
@@ -165,3 +206,5 @@ public record StampRequest
     public DateTime? TimestampUtc { get; init; }
     public Dictionary<string, string>? Meta { get; init; }
 }
+
+public record ReaderPingRequest(string ReaderId);

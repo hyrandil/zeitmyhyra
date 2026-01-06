@@ -4,12 +4,22 @@
 @if(TempData["Info"] != null){<div class="alert alert-info">@TempData["Info"]</div>}
 <a class="btn btn-success mb-3" href="/Readers/Create">Neu</a>
 <table class="table table-striped align-middle">
-    <thead><tr><th>ID</th><th>Name</th><th>Standort</th><th>Status</th><th>Aktiv</th><th class="text-end">Aktionen</th></tr></thead>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Standort</th>
+            <th>Status</th>
+            <th>Letzter Kontakt</th>
+            <th>Aktiv</th>
+            <th class="text-end">Aktionen</th>
+        </tr>
+    </thead>
     <tbody>
     @foreach(var r in Model){
         <tr>
             <td>@r.Reader.ReaderId</td><td>@r.Reader.Name</td><td>@r.Reader.Location</td>
-            <td>
+            <td class="align-middle">
                 @if (r.IsOnline())
                 {
                     <span class="badge bg-success">Online</span>
@@ -18,7 +28,9 @@
                 {
                     <span class="badge bg-secondary">Offline</span>
                 }
-                <div class="small text-muted">Letzter Kontakt: @(r.LastSeenUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss") ?? "-")</div>
+            </td>
+            <td class="align-middle text-nowrap">
+                <span class="small text-muted">@(r.LastSeenUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss") ?? "-")</span>
             </td>
             <td>@(r.Reader.IsActive?"Ja":"Nein")</td>
             <td class="text-end d-flex gap-2 justify-content-end">

@@ -59,6 +59,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite
 builder.Services.AddControllersWithViews().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -168,6 +169,29 @@ api.MapDelete("/stamps/{id:guid}", async (Guid id, ApplicationDbContext db) =>
     await db.SaveChangesAsync();
     return Results.NoContent();
 }).RequireAuthorization("AdminOnly").WithTags("Stamps");
+
+api.MapPost("/readers/ping", async (HttpContext context, ApiKeyValidator validator, ApplicationDbContext db, [FromBody] ReaderPingRequest request) =>
+{
+    if (!context.Request.Headers.TryGetValue("X-API-KEY", out var apiKey) || string.IsNullOrWhiteSpace(apiKey))
+    {
+        return Results.Unauthorized();
+    }
+
+    var reader = await validator.ValidateAsync(apiKey!);
+    if (reader is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!string.IsNullOrWhiteSpace(request.ReaderId) && !string.Equals(request.ReaderId, reader.ReaderId, StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.BadRequest("ReaderId stimmt nicht mit API-Key überein.");
+    }
+
+    reader.LastPingUtc = DateTime.UtcNow;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { status = "ok", serverTimeUtc = DateTime.UtcNow });
+}).WithTags("Readers");
 
 api.MapGet("/users", async ([FromQuery] string? search, [FromQuery] bool? activeOnly, ApplicationDbContext db) =>
 {
@@ -350,6 +374,8 @@ public record RecalculateRequest(DateTime From, DateTime To);
 
 public record ReaderUpdateRequest(string ReaderId, string? Name, string? Location, bool IsActive);
 
+public record ReaderPingRequest(string ReaderId);
+
 public record AdminOptions
 {
     public string Username { get; init; } = "admin";
@@ -415,6 +441,7 @@ public class StampService
         var engine = await _engineFactory.CreateAsync();
         var mealType = engine.ResolveMealType(local);
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Uid == uid);
+        var reader = await _db.Readers.FirstOrDefaultAsync(r => r.ReaderId == readerId);
         var stamp = new Stamp
         {
             TimestampUtc = utc,
@@ -425,6 +452,10 @@ public class StampService
             UserId = user?.Id,
             CreatedAtUtc = DateTime.UtcNow
         };
+        if (reader != null)
+        {
+            reader.LastPingUtc = DateTime.UtcNow;
+        }
         _db.Stamps.Add(stamp);
         await _db.SaveChangesAsync();
         return stamp;

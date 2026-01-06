@@ -33,7 +33,11 @@ public class ReadersController : Controller
         var models = readers.Select(r => new ReaderStatusViewModel
         {
             Reader = r,
-            LastSeenUtc = lastStamps.FirstOrDefault(ls => ls.ReaderId == r.ReaderId)?.LastSeenUtc
+            LastSeenUtc = new[]
+            {
+                lastStamps.FirstOrDefault(ls => ls.ReaderId == r.ReaderId)?.LastSeenUtc,
+                r.LastPingUtc
+            }.Where(x => x.HasValue).Max()
         }).ToList();
 
         return View(models);

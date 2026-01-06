@@ -55,19 +55,26 @@
     const renderRows = (items) => {
         tableBody.innerHTML = '';
         items.forEach(item => {
+            const id = item.id ?? item.Id;
+            const timestampUtc = item.timestampUtc ?? item.TimestampUtc;
+            const timestampLocal = item.timestampLocal ?? item.TimestampLocal;
+            const uid = item.uidRaw ?? item.UidRaw ?? '';
+            const user = item.user ?? item.User;
+            const readerId = item.readerId ?? item.ReaderId ?? '';
+            const mealType = item.mealType ?? item.MealType;
             const row = document.createElement('tr');
-            row.dataset.id = item.id;
-            if (!item.user) row.classList.add('table-warning');
+            row.dataset.id = id;
+            if (!user) row.classList.add('table-warning');
             row.innerHTML = `
-                <td>${formatDateTime(item.timestampUtc, 'UTC')}</td>
-                <td>${formatDateTime(item.timestampLocal, 'Europe/Berlin')}</td>
-                <td>${item.uidRaw}</td>
-                <td>${item.user ? item.user.fullName : 'Unbekannt'}</td>
-                <td>${item.readerId}</td>
-                <td>${mealLabel(item.mealType)}</td>
+                <td>${formatDateTime(timestampUtc, 'UTC')}</td>
+                <td>${formatDateTime(timestampLocal, 'Europe/Berlin')}</td>
+                <td>${uid}</td>
+                <td>${user ? (user.fullName ?? user.FullName ?? '') : 'Unbekannt'}</td>
+                <td>${readerId}</td>
+                <td>${mealLabel(mealType)}</td>
                 <td class="text-end">
-                    ${!item.user ? `<a class="btn btn-sm btn-outline-primary" href="/Users?search=${encodeURIComponent(item.uidRaw)}">Benutzer verknüpfen</a>` : ''}
-                    ${canDelete ? `<button type="button" class="btn btn-sm btn-outline-danger btn-delete" data-id="${item.id}">Löschen</button>` : ''}
+                    ${!user ? `<a class="btn btn-sm btn-outline-primary" href="/Users?search=${encodeURIComponent(uid)}">Benutzer verknüpfen</a>` : ''}
+                    ${canDelete && id ? `<button type="button" class="btn btn-sm btn-outline-danger btn-delete" data-id="${id}">Löschen</button>` : ''}
                 </td>
             `;
             tableBody.appendChild(row);

@@ -107,14 +107,14 @@ Beim ersten Start wird der Standard-Admin (User `admin`, Passwort `ChangeMe123!`
 
 ## Reader-Client
 - Konsolenanwendung (Keyboard-Wedge)
-- Konfiguration in `readerclientsettings.json` (ServerUrl, ApiKey, ReaderId, Terminator)
+- Konfiguration in `readerclientsettings.json` (ServerUrl, ApiKey, ReaderId, Terminator, PingIntervalSeconds)
 - Offline-Queue unter `./queue/queue.jsonl` – wird beim nächsten Start/Online-Status gesendet
 - Start per Autostart oder geplanter Task möglich
 
 ### Reader einrichten
 1. Im Web UI Reader anlegen oder per API erzeugen.
 2. API-Key notieren und in `readerclientsettings.json` eintragen.
-3. `ServerUrl` und `ReaderId` setzen, dann Client starten.
+3. `ServerUrl` und `ReaderId` setzen, dann Client starten. Der Client sendet Stempelungen sowie regelmäßige "Ping"-Signale an `/api/v1/readers/ping`, damit der Server den Online-Status erkennt (Intervall via `PingIntervalSeconds`).
 
 ## Beispiel-Meal-Rules
 - Frühstück: 07:00–10:00 (alle Tage)

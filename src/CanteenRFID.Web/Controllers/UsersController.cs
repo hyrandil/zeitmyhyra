@@ -37,11 +37,11 @@ public class UsersController : Controller
     {
         if (await _db.Users.AnyAsync(u => u.PersonnelNo == user.PersonnelNo))
         {
-            ModelState.AddModelError(nameof(User.PersonnelNo), "Personalnummer bereits vergeben");
+            ModelState.AddModelError(nameof(user.PersonnelNo), "Personalnummer bereits vergeben");
         }
         if (!string.IsNullOrWhiteSpace(user.Uid) && await _db.Users.AnyAsync(u => u.Uid == user.Uid))
         {
-            ModelState.AddModelError(nameof(User.Uid), "UID bereits verknüpft");
+            ModelState.AddModelError(nameof(user.Uid), "UID bereits verknüpft");
         }
         if (!ModelState.IsValid)
         {
@@ -68,11 +68,11 @@ public class UsersController : Controller
 
         if (await _db.Users.AnyAsync(u => u.PersonnelNo == user.PersonnelNo && u.Id != id))
         {
-            ModelState.AddModelError(nameof(User.PersonnelNo), "Personalnummer bereits vergeben");
+            ModelState.AddModelError(nameof(user.PersonnelNo), "Personalnummer bereits vergeben");
         }
         if (!string.IsNullOrWhiteSpace(user.Uid) && await _db.Users.AnyAsync(u => u.Uid == user.Uid && u.Id != id))
         {
-            ModelState.AddModelError(nameof(User.Uid), "UID bereits verknüpft");
+            ModelState.AddModelError(nameof(user.Uid), "UID bereits verknüpft");
         }
         if (!ModelState.IsValid)
         {

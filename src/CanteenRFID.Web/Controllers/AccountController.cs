@@ -16,6 +16,7 @@ public class AccountController : Controller
     }
 
     [HttpGet]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Login(string? returnUrl = null)
     {
         ViewBag.ReturnUrl = returnUrl;
@@ -23,6 +24,7 @@ public class AccountController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string username, string password, string? returnUrl = null)
     {
         var opts = _adminOptions.CurrentValue;
@@ -42,9 +44,14 @@ public class AccountController : Controller
         return View();
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+        Response.Headers["Pragma"] = "no-cache";
+        Response.Headers["Expires"] = "0";
         return RedirectToAction("Login");
     }
 }

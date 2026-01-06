@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CanteenRFID</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" />
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">CanteenRFID</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/Dashboard">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Users">Benutzer</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Readers">Reader</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Stamps">Stempelungen</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/MealRules">Regeln</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Reports/Consumption">Auswertungen</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Exports">Exporte</a></li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link" href="/Account/Logout">Logout</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <main class="container">
+        @RenderBody()
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

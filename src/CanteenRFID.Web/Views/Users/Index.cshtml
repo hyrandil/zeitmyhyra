@@ -1,0 +1,26 @@
+@model IEnumerable<User>
+<h2>Benutzer</h2>
+<form class="row mb-3" method="get">
+    <div class="col"><input class="form-control" name="search" placeholder="Suche" value="@Context.Request.Query["search"]" /></div>
+    <div class="col-auto"><button class="btn btn-primary" type="submit">Filtern</button></div>
+    <div class="col-auto"><a class="btn btn-success" href="/Users/Create">Neu</a></div>
+</form>
+<table class="table table-striped">
+    <thead><tr><th>Name</th><th>Personalnr</th><th>UID</th><th>Aktiv</th><th></th></tr></thead>
+    <tbody>
+    @foreach(var u in Model){
+        <tr>
+            <td>@u.FullName</td>
+            <td>@u.PersonnelNo</td>
+            <td>@u.Uid</td>
+            <td>@(u.IsActive ? "Ja" : "Nein")</td>
+            <td>
+                <a class="btn btn-sm btn-secondary" href="/Users/Edit/@u.Id">Bearbeiten</a>
+                <form method="post" asp-action="Delete" asp-route-id="@u.Id" class="d-inline" onsubmit="return confirm('Löschen?');">
+                    <button class="btn btn-sm btn-danger" type="submit">Löschen</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

@@ -1,0 +1,20 @@
+@model IEnumerable<Reader>
+<h2>Reader</h2>
+@if(TempData["ApiKey"] != null){<div class="alert alert-success">Neuer API Key: <code>@TempData["ApiKey"]</code></div>}
+@if(TempData["Info"] != null){<div class="alert alert-info">@TempData["Info"]</div>}
+<a class="btn btn-success mb-3" href="/Readers/Create">Neu</a>
+<table class="table table-striped">
+    <thead><tr><th>ID</th><th>Name</th><th>Standort</th><th>Aktiv</th><th></th></tr></thead>
+    <tbody>
+    @foreach(var r in Model){
+        <tr>
+            <td>@r.ReaderId</td><td>@r.Name</td><td>@r.Location</td><td>@(r.IsActive?"Ja":"Nein")</td>
+            <td>
+                <form method="post" asp-action="Regenerate" asp-route-id="@r.Id" onsubmit="return confirm('API Key neu generieren?');">
+                    <button class="btn btn-sm btn-warning" type="submit">API Key regenerieren</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

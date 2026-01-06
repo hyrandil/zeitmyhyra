@@ -1,0 +1,29 @@
+@model IEnumerable<MealRule>
+<h2>Regeln</h2>
+@if(TempData["Message"] != null){<div class="alert alert-info">@TempData["Message"]</div>}
+<a class="btn btn-success mb-3" href="/MealRules/Create">Neu</a>
+<form method="post" asp-action="Recalculate" class="row gy-2 mb-3">
+    <div class="col"><input class="form-control" type="date" name="from" required /></div>
+    <div class="col"><input class="form-control" type="date" name="to" required /></div>
+    <div class="col-auto"><button class="btn btn-warning" type="submit">Meal Types neu berechnen</button></div>
+</form>
+<table class="table table-striped">
+    <thead><tr><th>Name</th><th>MealType</th><th>Zeitraum</th><th>Tage</th><th>Prio</th><th>Aktiv</th><th></th></tr></thead>
+    <tbody>
+    @foreach(var r in Model){
+        <tr>
+            <td>@r.Name</td><td>@r.MealType</td>
+            <td>@r.StartTimeLocal - @r.EndTimeLocal</td>
+            <td>@r.DaysOfWeekMask</td>
+            <td>@r.Priority</td>
+            <td>@(r.IsActive?"Ja":"Nein")</td>
+            <td>
+                <a class="btn btn-sm btn-secondary" href="/MealRules/Edit/@r.Id">Bearbeiten</a>
+                <form method="post" asp-action="Delete" asp-route-id="@r.Id" class="d-inline" onsubmit="return confirm('Löschen?');">
+                    <button class="btn btn-sm btn-danger" type="submit">Löschen</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

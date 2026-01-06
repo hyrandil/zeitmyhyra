@@ -1,61 +1,66 @@
-# Zeitmyhyra
+# CanteenRFID
 
-Browserbasierte Zeiterfassung mit Node/Express/TypeScript (Backend), React/TypeScript (Frontend) und PostgreSQL über Prisma. Enthält Authentifizierung via JWT, Rollen (Employee, Team Lead, HR, Admin) und CRUD-Oberflächen für Mitarbeiter, Zeiterfassung, Urlaub und Berichte.
+Portable ASP.NET Core + SQLite Lösung für Kantinen-RFID-Erfassung und Reader-Client.
+
+## Voraussetzungen
+- Windows 10/11 oder Windows Server
+- .NET 8 SDK/Runtime für Entwicklung (für Deployment: veröffentlichter Ordner genügt)
 
 ## Projektstruktur
+- `src/CanteenRFID.Core` – Modelle, Enums, Regel-Engine
+- `src/CanteenRFID.Data` – EF Core DbContext
+- `src/CanteenRFID.Web` – ASP.NET Core MVC + Minimal API, Razor Views, Exporte
+- `src/CanteenRFID.ReaderClient` – Konsolenclient für Keyboard-Wedge-Reader
+- `tests/CanteenRFID.Tests` – Basis-Tests (Rule-Engine)
+- `data/canteen.db` – SQLite Datenbank (wird automatisch erzeugt)
+- `logs/` – Serilog-Ausgabe
+
+## Web starten
+```bash
+# Entwicklung
+cd src/CanteenRFID.Web
+dotnet run
 ```
-backend/   # Express + Prisma API
-frontend/  # React SPA (Vite)
+
+Für portable Auslieferung auf Windows:
+```bash
+dotnet publish -c Release -r win-x64 /p:PublishSingleFile=true
 ```
+Im Publish-Output liegt `CanteenRFID.Web.exe` sowie `appsettings.json`. Datenbank befindet sich unter `./data/canteen.db`.
 
-## Backend
-1. `.env` aus `.env.example` kopieren und Datenbank-URL/JWT anpassen.
-2. Abhängigkeiten installieren und Prisma-Client generieren:
-   ```bash
-   cd backend
-   npm install
-   npm run prisma:generate
-   # optional: Migration/Seed
-   npm run prisma:migrate
-   npx ts-node prisma/seed.ts
-   ```
-3. Entwicklung starten:
-   ```bash
-   npm run dev
-   ```
+### Konfiguration
+- `appsettings.json` enthält Admin-Anmeldedaten, Logging und Zeitzone.
+- Zeitzone Default: `W. Europe Standard Time` (Europe/Berlin).
 
-Wichtige Endpunkte (alle prefixed mit `/api`):
-- `POST /auth/login` – Login, liefert JWT
-- `POST /auth/register` – Benutzer anlegen (nur Admin)
-- `GET /auth/me` – Profil & verknüpfte Employee-ID für eingeloggte Nutzer
-- `GET/POST/PUT/DELETE /employees` – Mitarbeiterverwaltung (HR/Admin)
-- `POST /time/stamp` – Kommen/Gehen/Pause buchen
-- `GET /time/monthly` – Monatsübersicht mit Summen
-- `POST /leave` – Urlaubsantrag stellen; `POST /leave/:id/review` – Genehmigen/Ablehnen
-- `GET /reports/monthly` – Monatsbericht; `GET /reports/overtime` – Überstunden-Report
+### Admin-Seed
+Beim Start wird der Standard-Admin (User `admin`, Passwort `ChangeMe123!`) auf der Konsole ausgegeben.
 
-Beispiel-Login nach Seed: `admin@example.com` / `admin123`.
+## Funktionen (Web)
+- Login mit Cookie-Auth (Rollen Admin/Viewer)
+- Benutzerverwaltung (CRUD, Personalnummer/UID eindeutig)
+- Stempelungen anzeigen und filtern (Meal-Type, Zeitraum, Suche)
+- Meal-Type-Regeln verwalten + Neu-Berechnung
+- Readerverwaltung mit API-Key-Generierung (Hash in DB)
+- Exporte: Excel (ClosedXML) & PDF (QuestPDF) mit Summary + RawEvents
+- Minimal API `/api/v1/stamps` für Reader (Header `X-API-KEY`)
 
-## Frontend
-1. In separatem Terminal:
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-2. Standard-API-URL ist `http://localhost:4000/api`. Anpassbar via `VITE_API_URL`.
+## Reader-Client
+- Konsolenanwendung (Keyboard-Wedge)
+- Konfiguration in `readerclientsettings.json` (ServerUrl, ApiKey, ReaderId)
+- Offline-Queue unter `./queue/queue.jsonl` – wird beim nächsten Start/Online-Status gesendet
+- Start per Autostart oder geplanter Task möglich
 
-Seiten:
-- Login
-- Dashboard (Status + letzte Stempelungen)
-- Zeiterfassung (Buttons + Monatsübersicht)
-- Urlaubsanträge (Formular + eigene Anträge)
-- Mitarbeiterverwaltung (Tabelle + Anlage)
-- Berichte (Filter + Export JSON)
+## Beispiel-Meal-Rules
+- Frühstück: 07:00–10:00 (alle Tage)
+- Mittag: 10:00–15:00 (alle Tage)
+- Abend: 15:00–20:00 (alle Tage)
+
+## Exporte nutzen
+- Navigiere zu **Exporte**, Zeitraum wählen und Excel oder PDF generieren. Dateiname enthält den Zeitraum.
 
 ## Tests
-Beispiel-Vitest für Zeitberechnung:
 ```bash
-cd backend
-npm test
+cd tests/CanteenRFID.Tests
+ dotnet test
 ```
+

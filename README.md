@@ -69,9 +69,14 @@ Die Anwendung läuft auch unter Linux; empfohlen wird ein aktuelles Debian/Ubunt
 
 Für portable Auslieferung auf Windows:
 ```bash
-dotnet publish -c Release -r win-x64 /p:PublishSingleFile=true
+# Web-Server als Single-File (empfohlen):
+dotnet publish src/CanteenRFID.Web -c Release -r win-x64 /p:PublishSingleFile=true
+
+# Reader-Client als Single-File (optional):
+dotnet publish src/CanteenRFID.ReaderClient -c Release -r win-x64 /p:PublishSingleFile=true
 ```
 Im Publish-Output liegt `CanteenRFID.Web.exe` sowie `appsettings.json`. Datenbank befindet sich unter `./data/canteen.db`.
+Bitte keine Lösung/Library-Projekte mit `PublishSingleFile=true` veröffentlichen (CanteenRFID.Core, CanteenRFID.Data, Tests sind nicht publishbar).
 
 ### Konfiguration
 - `appsettings.json` enthält Admin-Anmeldedaten (werden beim ersten Start in `./data/admin.secret.json` gehasht abgelegt), Logging und Zeitzone.

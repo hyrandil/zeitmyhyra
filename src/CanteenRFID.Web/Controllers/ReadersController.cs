@@ -32,6 +32,8 @@ public class ReadersController : Controller
     }
 
     [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(Reader reader)
     {
         reader.ApiKeyHash = _hasher.Hash(Guid.NewGuid().ToString("N"));
@@ -43,6 +45,7 @@ public class ReadersController : Controller
 
     [Authorize(Policy = "AdminOnly")]
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Regenerate(Guid id)
     {
         var reader = await _db.Readers.FindAsync(id);
@@ -51,6 +54,32 @@ public class ReadersController : Controller
         reader.ApiKeyHash = _hasher.Hash(apiKey);
         await _db.SaveChangesAsync();
         TempData["ApiKey"] = apiKey;
+        return RedirectToAction(nameof(Index));
+    }
+
+    [Authorize(Policy = "AdminOnly")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Toggle(Guid id)
+    {
+        var reader = await _db.Readers.FindAsync(id);
+        if (reader == null) return NotFound();
+        reader.IsActive = !reader.IsActive;
+        await _db.SaveChangesAsync();
+        TempData["Info"] = $"Reader {(reader.IsActive ? "aktiviert" : "deaktiviert")}.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [Authorize(Policy = "AdminOnly")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var reader = await _db.Readers.FindAsync(id);
+        if (reader == null) return NotFound();
+        _db.Readers.Remove(reader);
+        await _db.SaveChangesAsync();
+        TempData["Info"] = "Reader gelöscht.";
         return RedirectToAction(nameof(Index));
     }
 }

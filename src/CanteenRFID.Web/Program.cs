@@ -93,13 +93,19 @@ app.UseAuthorization();
 
 app.Use(async (ctx, next) =>
 {
-    await next();
-    if (ctx.User?.Identity?.IsAuthenticated == true)
+    ctx.Response.OnStarting(() =>
     {
-        ctx.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-        ctx.Response.Headers["Pragma"] = "no-cache";
-        ctx.Response.Headers["Expires"] = "0";
-    }
+        if (ctx.User?.Identity?.IsAuthenticated == true)
+        {
+            ctx.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            ctx.Response.Headers["Pragma"] = "no-cache";
+            ctx.Response.Headers["Expires"] = "0";
+        }
+
+        return Task.CompletedTask;
+    });
+
+    await next();
 });
 
 app.MapControllerRoute(

@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -15,6 +16,11 @@ using QuestPDF.Infrastructure;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Listen(IPAddress.Any, 5000);
+});
 
 QuestPDF.Settings.License = LicenseType.Community;
 

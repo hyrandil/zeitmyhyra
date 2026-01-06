@@ -74,11 +74,22 @@ dotnet publish -c Release -r win-x64 /p:PublishSingleFile=true
 Im Publish-Output liegt `CanteenRFID.Web.exe` sowie `appsettings.json`. Datenbank befindet sich unter `./data/canteen.db`.
 
 ### Konfiguration
-- `appsettings.json` enthält Admin-Anmeldedaten, Logging und Zeitzone.
+- `appsettings.json` enthält Admin-Anmeldedaten (werden beim ersten Start in `./data/admin.secret.json` gehasht abgelegt), Logging und Zeitzone.
 - Zeitzone Default: `W. Europe Standard Time` (Europe/Berlin).
 
+### Admin-Passwort ändern/zurücksetzen
+- **Im Web**: Angemeldete Admins können unter **Passwort ändern** (Navigationsleiste) das Kennwort nach Eingabe des aktuellen Passworts setzen. Die Änderung wird gehasht in `./data/admin.secret.json` gespeichert.
+- **Commandline-Reset (z. B. bei vergessenem Passwort)**: Im Publish-Ordner ausführen und neues Passwort übergeben:
+  ```bash
+  # Windows
+  CanteenRFID.Web.exe --reset-admin-password "NeuesSicheresPasswort!"
+  # Linux/macOS
+  ./CanteenRFID.Web --reset-admin-password "NeuesSicheresPasswort!"
+  ```
+  Der Befehl überschreibt das gespeicherte Passwort (Username bleibt gleich) und beendet anschließend die Anwendung.
+
 ### Admin-Seed
-Beim Start wird der Standard-Admin (User `admin`, Passwort `ChangeMe123!`) auf der Konsole ausgegeben.
+Beim ersten Start wird der Standard-Admin (User `admin`, Passwort `ChangeMe123!`) auf der Konsole ausgegeben und in `./data/admin.secret.json` abgelegt. Danach sollte das Passwort über die UI oder den Reset-Befehl geändert werden.
 
 ## Funktionen (Web)
 - Login mit Cookie-Auth (Rollen Admin/Viewer)

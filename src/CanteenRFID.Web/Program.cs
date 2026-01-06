@@ -7,6 +7,7 @@ using CanteenRFID.Core.Models;
 using CanteenRFID.Core.Services;
 using CanteenRFID.Data.Contexts;
 using CanteenRFID.Data.Services;
+using CanteenRFID.Web.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,7 @@ builder.Host.UseSerilog();
 
 builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection("Admin"));
 builder.Services.Configure<TimezoneOptions>(builder.Configuration.GetSection("Timezone"));
+builder.Services.AddSingleton<AdminCredentialStore>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -40,7 +42,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole(AdminCredentialStore.AdminRole));
 });
 
 var dataDir = Path.Combine(AppContext.BaseDirectory, "data");
@@ -66,8 +68,14 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await DataSeeder.SeedAsync(db);
+    var store = scope.ServiceProvider.GetRequiredService<AdminCredentialStore>();
+    var existed = store.SecretExists;
     var adminOptions = scope.ServiceProvider.GetRequiredService<IConfiguration>().GetSection("Admin").Get<AdminOptions>() ?? new AdminOptions();
-    Console.WriteLine($"Admin Login -> User: {adminOptions.Username}, Password: {adminOptions.Password}");
+    var creds = await store.EnsureAsync();
+    if (!existed)
+    {
+        Console.WriteLine($"Admin Login -> User: {creds.Username}, Password: {adminOptions.Password}");
+    }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -305,6 +313,22 @@ api.MapDelete("/readers/{id:guid}", async (Guid id, ApplicationDbContext db) =>
     await db.SaveChangesAsync();
     return Results.NoContent();
 }).RequireAuthorization("AdminOnly").WithTags("Readers");
+
+var resetIndex = Array.FindIndex(args, a => a.Equals("--reset-admin-password", StringComparison.OrdinalIgnoreCase));
+if (resetIndex >= 0)
+{
+    if (resetIndex + 1 >= args.Length)
+    {
+        Console.WriteLine("Bitte neues Passwort nach --reset-admin-password angeben.");
+        return;
+    }
+
+    using var scope = app.Services.CreateScope();
+    var store = scope.ServiceProvider.GetRequiredService<AdminCredentialStore>();
+    await store.ResetAsync(args[resetIndex + 1]);
+    Console.WriteLine("Admin-Passwort wurde zurückgesetzt.");
+    return;
+}
 
 app.Run();
 

@@ -1,6 +1,7 @@
 @model Reader
 <h2>Reader anlegen</h2>
 <form method="post">
+    @Html.AntiForgeryToken()
     <div class="mb-3"><label class="form-label">Reader ID</label><input asp-for="ReaderId" class="form-control" /></div>
     <div class="mb-3"><label class="form-label">Name</label><input asp-for="Name" class="form-control" /></div>
     <div class="mb-3"><label class="form-label">Standort</label><input asp-for="Location" class="form-control" /></div>

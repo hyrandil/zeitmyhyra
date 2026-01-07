@@ -1,0 +1,39 @@
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CanteenRFID Reader Display</title>
+    <link href="~/css/reader-display.css" rel="stylesheet" />
+</head>
+<body>
+    <main class="reader-display">
+        <section id="setupPanel" class="setup-panel">
+            <div class="setup-card">
+                <h1>Reader auswählen</h1>
+                <p>Bitte wählen Sie den Reader, der an dieser Kasse verwendet wird.</p>
+                <form id="setupForm">
+                    <label class="form-label" for="readerSelect">Reader</label>
+                    <select id="readerSelect" class="form-select" required></select>
+                    <button class="form-button" type="submit">Starten</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="statusPanel" class="status-panel hidden">
+            <div class="status-hint">Bitte RFID vorhalten</div>
+            <div id="stampCard" class="stamp-card hidden">
+                <div id="mealLabel" class="meal-label">Frühstück</div>
+                <div id="userName" class="user-name"></div>
+                <div class="checkmark" aria-hidden="true">✔</div>
+                <div class="stamp-subtitle">Stempelung erfasst</div>
+            </div>
+        </section>
+    </main>
+
+    <script src="~/js/reader-display.js"></script>
+</body>
+</html>

@@ -21,4 +21,6 @@ public class Reader
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public DateTime? LastPingUtc { get; set; }
 }

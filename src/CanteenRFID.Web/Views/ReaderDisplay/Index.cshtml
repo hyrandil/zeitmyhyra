@@ -1,0 +1,40 @@
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CanteenRFID Reader Display</title>
+    <link href="~/css/reader-display.css" rel="stylesheet" />
+</head>
+<body>
+    <main class="reader-display">
+        <section id="configPanel" class="config-panel">
+            <h1>Reader Display konfigurieren</h1>
+            <p>Bitte Reader-ID und API-Key eingeben, damit der Status angezeigt werden kann.</p>
+            <form id="configForm">
+                <label class="form-label" for="readerIdInput">Reader-ID</label>
+                <input id="readerIdInput" class="form-input" type="text" autocomplete="off" required />
+
+                <label class="form-label" for="apiKeyInput">API-Key</label>
+                <input id="apiKeyInput" class="form-input" type="password" autocomplete="off" required />
+
+                <button class="form-button" type="submit">Speichern</button>
+            </form>
+        </section>
+
+        <section id="statusPanel" class="status-panel hidden">
+            <div class="status-message" id="statusMessage">Warte auf Stempelung…</div>
+            <div id="stampCard" class="stamp-card hidden">
+                <div id="mealLabel" class="meal-label">Frühstück</div>
+                <div id="userName" class="user-name"></div>
+                <div class="checkmark" aria-hidden="true">✔</div>
+            </div>
+        </section>
+    </main>
+
+    <script src="~/js/reader-display.js"></script>
+</body>
+</html>

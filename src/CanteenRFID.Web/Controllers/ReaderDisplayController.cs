@@ -26,9 +26,36 @@ public class ReaderDisplayController : Controller
         }
 
         var reader = await _db.Readers.FirstOrDefaultAsync(r => r.ReaderId == readerId);
-        if (reader == null || string.IsNullOrWhiteSpace(reader.DisplayPassword) || reader.DisplayPassword != pw)
+        if (reader == null)
         {
             return Unauthorized("Ungültiges ReaderDisplay-Passwort.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(reader.DisplayPassword))
+        {
+            if (reader.DisplayPassword != pw)
+            {
+                return Unauthorized("Ungültiges ReaderDisplay-Passwort.");
+            }
+        }
+        else
+        {
+            try
+            {
+                var storedPassword = await _db.Database
+                    .SqlQuery<string?>(
+                        $"SELECT DisplayPassword FROM Readers WHERE ReaderId = {readerId} LIMIT 1")
+                    .FirstOrDefaultAsync();
+
+                if (string.IsNullOrWhiteSpace(storedPassword) || storedPassword != pw)
+                {
+                    return Unauthorized("Ungültiges ReaderDisplay-Passwort.");
+                }
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 1)
+            {
+                return Unauthorized("ReaderDisplay ist noch nicht konfiguriert.");
+            }
         }
 
         var readers = new List<ReaderDisplayOption>

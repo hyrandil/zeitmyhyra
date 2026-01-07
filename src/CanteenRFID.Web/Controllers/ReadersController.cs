@@ -29,7 +29,21 @@ public class ReadersController : Controller
             .Select(g => new { ReaderId = g.Key, LastSeenUtc = g.Max(s => s.TimestampUtc) })
             .ToListAsync();
 
-        var readers = await _db.Readers.OrderBy(r => r.ReaderId).ToListAsync();
+        var readers = await _db.Readers
+            .OrderBy(r => r.ReaderId)
+            .Select(r => new Reader
+            {
+                Id = r.Id,
+                ReaderId = r.ReaderId,
+                Name = r.Name,
+                Location = r.Location,
+                ApiKeyHash = r.ApiKeyHash,
+                IsActive = r.IsActive,
+                CreatedAtUtc = r.CreatedAtUtc,
+                LastPingUtc = r.LastPingUtc,
+                DisplayPassword = null
+            })
+            .ToListAsync();
         var models = readers.Select(r => new ReaderStatusViewModel
         {
             Reader = r,
@@ -92,10 +106,32 @@ public class ReadersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateDisplayPassword(Guid id, string? displayPassword)
     {
-        var reader = await _db.Readers.FindAsync(id);
+        var reader = await _db.Readers.FirstOrDefaultAsync(r => r.Id == id);
         if (reader == null) return NotFound();
-        reader.DisplayPassword = string.IsNullOrWhiteSpace(displayPassword) ? null : displayPassword.Trim();
-        await _db.SaveChangesAsync();
+        var trimmed = string.IsNullOrWhiteSpace(displayPassword) ? null : displayPassword.Trim();
+        if (trimmed != null)
+        {
+            try
+            {
+                await _db.Database.ExecuteSqlInterpolatedAsync(
+                    $"ALTER TABLE Readers ADD COLUMN DisplayPassword TEXT");
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 1)
+            {
+                // Column already exists.
+            }
+        }
+
+        if (trimmed == null)
+        {
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE Readers SET DisplayPassword = NULL WHERE Id = {id}");
+        }
+        else
+        {
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE Readers SET DisplayPassword = {trimmed} WHERE Id = {id}");
+        }
         TempData["Info"] = "Reader-Display Passwort aktualisiert.";
         return RedirectToAction(nameof(Index));
     }

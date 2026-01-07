@@ -16,7 +16,7 @@ public class ReaderDisplayController : Controller
         _db = db;
     }
 
-    [HttpGet]
+    [HttpGet("/ReaderDisplay")]
     [HttpGet("/ReaderDisplay={readerId}")]
     public async Task<IActionResult> Index(string? readerId, string? pw)
     {

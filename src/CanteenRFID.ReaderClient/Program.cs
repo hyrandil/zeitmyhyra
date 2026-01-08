@@ -3,8 +3,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 
-namespace CanteenRFID.ReaderClient;
-
+namespace CanteenRFID.ReaderClient
+{
 public class Program
 {
     public static async Task Main(string[] args)
@@ -156,10 +156,6 @@ public class KeyboardWedgeSource : IUidSource
             }
         }
     }
-    else
-    {
-        await FlushQueueAsync();
-    }
 }
 
 public class StampSender
@@ -265,6 +261,9 @@ public record StampRequest
     public string ReaderId { get; init; } = string.Empty;
     public DateTime? TimestampUtc { get; init; }
     public Dictionary<string, string>? Meta { get; init; }
+}
+
+public record ReaderPingRequest(string ReaderId);
 }
 
 public record ReaderPingRequest(string ReaderId);

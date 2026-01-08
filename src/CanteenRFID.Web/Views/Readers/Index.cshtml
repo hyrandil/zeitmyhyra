@@ -35,29 +35,29 @@
             </td>
             <td class="align-middle">
                 <div class="d-flex flex-column gap-2">
-                    <span class="small text-muted">@(string.IsNullOrWhiteSpace(r.Reader.DisplayPassword) ? "-" : r.Reader.DisplayPassword)</span>
-                    <form method="post" asp-action="UpdateDisplayPassword" asp-route-id="@r.Reader.Id" class="d-grid d-md-flex gap-2 align-items-stretch">
+                    <span class="small text-muted text-break">@(string.IsNullOrWhiteSpace(r.Reader.DisplayPassword) ? "-" : r.Reader.DisplayPassword)</span>
+                    <form method="post" asp-action="UpdateDisplayPassword" asp-route-id="@r.Reader.Id" class="d-flex flex-column gap-2">
                         @Html.AntiForgeryToken()
                         <input type="text" name="displayPassword" class="form-control form-control-sm" placeholder="Neues Passwort" />
-                        <button class="btn btn-sm btn-outline-primary" type="submit">Speichern</button>
+                        <button class="btn btn-sm btn-outline-primary align-self-start" type="submit">Speichern</button>
                     </form>
                 </div>
             </td>
             <td>@(r.Reader.IsActive?"Ja":"Nein")</td>
             <td class="text-end">
-                <div class="d-grid d-md-flex gap-2 justify-content-end">
-                <form method="post" asp-action="Toggle" asp-route-id="@r.Reader.Id">
-                    @Html.AntiForgeryToken()
-                    <button class="btn btn-sm @(r.Reader.IsActive ? "btn-outline-secondary" : "btn-outline-success")" type="submit">@(r.Reader.IsActive ? "Deaktivieren" : "Aktivieren")</button>
-                </form>
-                <form method="post" asp-action="Regenerate" asp-route-id="@r.Reader.Id" onsubmit="return confirm('API Key neu generieren?');">
-                    @Html.AntiForgeryToken()
-                    <button class="btn btn-sm btn-warning" type="submit">API Key regenerieren</button>
-                </form>
-                <form method="post" asp-action="Delete" asp-route-id="@r.Reader.Id" onsubmit="return confirm('Reader löschen?');">
-                    @Html.AntiForgeryToken()
-                    <button class="btn btn-sm btn-danger" type="submit">Löschen</button>
-                </form>
+                <div class="d-flex flex-column gap-2 align-items-end">
+                    <form method="post" asp-action="Toggle" asp-route-id="@r.Reader.Id">
+                        @Html.AntiForgeryToken()
+                        <button class="btn btn-sm @(r.Reader.IsActive ? "btn-outline-secondary" : "btn-outline-success")" type="submit">@(r.Reader.IsActive ? "Deaktivieren" : "Aktivieren")</button>
+                    </form>
+                    <form method="post" asp-action="Regenerate" asp-route-id="@r.Reader.Id" onsubmit="return confirm('API Key neu generieren?');">
+                        @Html.AntiForgeryToken()
+                        <button class="btn btn-sm btn-warning" type="submit">API Key regenerieren</button>
+                    </form>
+                    <form method="post" asp-action="Delete" asp-route-id="@r.Reader.Id" onsubmit="return confirm('Reader löschen?');">
+                        @Html.AntiForgeryToken()
+                        <button class="btn btn-sm btn-danger" type="submit">Löschen</button>
+                    </form>
                 </div>
             </td>
         </tr>

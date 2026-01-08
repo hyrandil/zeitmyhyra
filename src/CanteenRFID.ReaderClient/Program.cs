@@ -22,6 +22,7 @@ httpClient.DefaultRequestHeaders.Add("X-API-KEY", settings.ApiKey);
 var queue = new StampQueue(queueFile);
 var sender = new StampSender(httpClient);
 var flushLock = new SemaphoreSlim(1, 1);
+var flushCts = new CancellationTokenSource();
 
 async Task FlushQueueAsync()
 {
@@ -55,6 +56,18 @@ var pingTask = Task.Run(async () =>
     }
 }, pingCts.Token);
 
+var flushTask = Task.Run(async () =>
+{
+    var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+    while (await timer.WaitForNextTickAsync(flushCts.Token))
+    {
+        if (File.Exists(queueFile) && new FileInfo(queueFile).Length > 0)
+        {
+            await FlushQueueAsync();
+        }
+    }
+}, flushCts.Token);
+
 Console.WriteLine("Bereit. UID einscannen und mit ENTER bestätigen (Keyboard-Wedge-Modus).");
 IUidSource source = new KeyboardWedgeSource(settings.Terminator);
 
@@ -85,9 +98,18 @@ await foreach (var uid in source.ReadAsync())
 }
 
 pingCts.Cancel();
+flushCts.Cancel();
 try
 {
     await pingTask;
+}
+catch (TaskCanceledException)
+{
+}
+
+try
+{
+    await flushTask;
 }
 catch (TaskCanceledException)
 {

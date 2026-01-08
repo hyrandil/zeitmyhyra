@@ -68,7 +68,15 @@ var flushTask = Task.Run(async () =>
     }
 }, flushCts.Token);
 
-await FlushQueueAsync();
+    try
+    {
+        await queue.FlushAsync(async stamp => await sender.TrySendAsync(stamp));
+    }
+    finally
+    {
+        flushLock.Release();
+    }
+}
 
 Console.WriteLine("Bereit. UID einscannen und mit ENTER bestätigen (Keyboard-Wedge-Modus).");
 IUidSource uidSource = new KeyboardWedgeSource(settings.Terminator);

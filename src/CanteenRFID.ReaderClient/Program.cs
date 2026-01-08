@@ -156,6 +156,10 @@ public class KeyboardWedgeSource : IUidSource
             }
         }
     }
+    else
+    {
+        await FlushQueueAsync();
+    }
 }
 
 public class StampSender

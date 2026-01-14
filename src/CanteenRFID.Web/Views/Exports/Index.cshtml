@@ -1,11 +1,33 @@
+@using CanteenRFID.Core.Enums
 <h2>Exporte</h2>
+<p class="text-muted">Zeitraum wählen und optional nach Meal-Type oder Benutzer filtern.</p>
 <form method="post" action="/Exports/Excel" class="row gy-2 mb-3">
-    <div class="col"><label class="form-label">Von</label><input class="form-control" type="date" name="from" required /></div>
-    <div class="col"><label class="form-label">Bis</label><input class="form-control" type="date" name="to" required /></div>
-    <div class="col-auto"><label class="form-label">&nbsp;</label><button class="btn btn-success w-100" type="submit">Excel Export</button></div>
+    <div class="col-md-3"><label class="form-label">Von</label><input class="form-control" type="date" name="from" required /></div>
+    <div class="col-md-3"><label class="form-label">Bis</label><input class="form-control" type="date" name="to" required /></div>
+    <div class="col-md-3"><label class="form-label">Meal-Type</label>
+        <select class="form-select" name="mealType">
+            <option value="">Alle</option>
+            @foreach (MealType m in Enum.GetValues(typeof(MealType)))
+            {
+                <option value="@m">@m</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2"><label class="form-label">Benutzer Id (optional)</label><input class="form-control" name="userId" placeholder="GUID" /></div>
+    <div class="col-md-1"><label class="form-label">&nbsp;</label><button class="btn btn-success w-100" type="submit">Excel</button></div>
 </form>
 <form method="post" action="/Exports/Pdf" class="row gy-2">
-    <div class="col"><label class="form-label">Von</label><input class="form-control" type="date" name="from" required /></div>
-    <div class="col"><label class="form-label">Bis</label><input class="form-control" type="date" name="to" required /></div>
-    <div class="col-auto"><label class="form-label">&nbsp;</label><button class="btn btn-primary w-100" type="submit">PDF Export</button></div>
+    <div class="col-md-3"><label class="form-label">Von</label><input class="form-control" type="date" name="from" required /></div>
+    <div class="col-md-3"><label class="form-label">Bis</label><input class="form-control" type="date" name="to" required /></div>
+    <div class="col-md-3"><label class="form-label">Meal-Type</label>
+        <select class="form-select" name="mealType">
+            <option value="">Alle</option>
+            @foreach (MealType m in Enum.GetValues(typeof(MealType)))
+            {
+                <option value="@m">@m</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2"><label class="form-label">Benutzer Id (optional)</label><input class="form-control" name="userId" placeholder="GUID" /></div>
+    <div class="col-md-1"><label class="form-label">&nbsp;</label><button class="btn btn-primary w-100" type="submit">PDF</button></div>
 </form>

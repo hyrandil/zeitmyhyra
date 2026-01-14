@@ -217,6 +217,7 @@ public sealed class GlobalKeyboardSource : IUidSource, IDisposable
         {
             UnhookWindowsHookEx(_hookId);
         }
+        return false;
     }
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
@@ -330,7 +331,20 @@ public class StampSender
 
     public async Task<bool> TrySendAsync(StampRequest request)
     {
-        try
+        _filePath = filePath;
+    }
+
+    public async Task EnqueueAsync(StampRequest request)
+    {
+        await File.AppendAllTextAsync(_filePath, JsonSerializer.Serialize(request, _options) + "\n");
+    }
+
+    public async Task FlushAsync(Func<StampRequest, Task<bool>> sender)
+    {
+        if (!File.Exists(_filePath)) return;
+        var lines = await File.ReadAllLinesAsync(_filePath);
+        var remaining = new List<string>();
+        foreach (var line in lines)
         {
             var response = await _client.PostAsJsonAsync("/api/v1/stamps", request);
             if (response.IsSuccessStatusCode)
@@ -427,3 +441,8 @@ public record StampRequest
 
 public record ReaderPingRequest(string ReaderId);
 }
+
+public record ReaderPingRequest(string ReaderId);
+}
+
+public record ReaderPingRequest(string ReaderId);

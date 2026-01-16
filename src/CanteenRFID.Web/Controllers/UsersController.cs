@@ -21,7 +21,12 @@ public class UsersController : Controller
         var query = _db.Users.AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
         {
-            query = query.Where(u => u.FirstName.Contains(search) || u.LastName.Contains(search) || u.PersonnelNo.Contains(search));
+            query = query.Where(u =>
+                u.FirstName.Contains(search) ||
+                u.LastName.Contains(search) ||
+                u.PersonnelNo.Contains(search) ||
+                (u.Uid != null && u.Uid.Contains(search)) ||
+                (u.TokenId != null && u.TokenId.Contains(search)));
         }
         var users = await query.OrderBy(u => u.LastName).ToListAsync();
         return View(users);
@@ -83,6 +88,7 @@ public class UsersController : Controller
         existing.LastName = user.LastName;
         existing.PersonnelNo = user.PersonnelNo;
         existing.Uid = user.Uid;
+        existing.TokenId = user.TokenId;
         existing.IsActive = user.IsActive;
         await _db.SaveChangesAsync();
         return RedirectToAction(nameof(Index));

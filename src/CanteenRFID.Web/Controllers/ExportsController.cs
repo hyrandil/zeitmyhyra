@@ -41,12 +41,12 @@ public class ExportsController : Controller
         summarySheet.Cell(1, 7).Value = "Unknown";
         summarySheet.Cell(1, 8).Value = "Total";
 
-        var grouped = stamps.GroupBy(s => s.User?.PersonnelNo ?? "Unbekannt").ToList();
+        var grouped = stamps.GroupBy(s => s.UserPersonnelNo ?? s.User?.PersonnelNo ?? "Unbekannt").ToList();
         var row = 2;
         foreach (var g in grouped)
         {
             summarySheet.Cell(row, 1).Value = g.Key;
-            summarySheet.Cell(row, 2).Value = g.First().User?.FullName ?? "Unbekannt";
+            summarySheet.Cell(row, 2).Value = g.First().UserDisplayName ?? g.First().User?.FullName ?? "Unbekannt";
             summarySheet.Cell(row, 3).Value = g.Count(x => x.MealType == MealType.Breakfast);
             summarySheet.Cell(row, 4).Value = g.Count(x => x.MealType == MealType.Lunch);
             summarySheet.Cell(row, 5).Value = g.Count(x => x.MealType == MealType.Dinner);
@@ -70,7 +70,7 @@ public class ExportsController : Controller
             rawSheet.Cell(rawRow, 1).Value = s.TimestampUtc;
             rawSheet.Cell(rawRow, 2).Value = s.TimestampLocal;
             rawSheet.Cell(rawRow, 3).Value = s.UidRaw;
-            rawSheet.Cell(rawRow, 4).Value = s.User?.FullName ?? "Unbekannt";
+            rawSheet.Cell(rawRow, 4).Value = s.UserDisplayName ?? s.User?.FullName ?? "Unbekannt";
             rawSheet.Cell(rawRow, 5).Value = s.ReaderId;
             rawSheet.Cell(rawRow, 6).Value = s.MealType.ToString();
             rawRow++;
@@ -88,10 +88,10 @@ public class ExportsController : Controller
     {
         var stamps = await BuildQuery(from, to, mealType, userId).Include(s => s.User).ToListAsync();
 
-        var grouped = stamps.GroupBy(s => s.User?.PersonnelNo ?? "Unbekannt").Select(g => new
+        var grouped = stamps.GroupBy(s => s.UserPersonnelNo ?? s.User?.PersonnelNo ?? "Unbekannt").Select(g => new
         {
             PersonnelNo = g.Key,
-            Name = g.First().User?.FullName ?? "Unbekannt",
+            Name = g.First().UserDisplayName ?? g.First().User?.FullName ?? "Unbekannt",
             Breakfast = g.Count(x => x.MealType == MealType.Breakfast),
             Lunch = g.Count(x => x.MealType == MealType.Lunch),
             Dinner = g.Count(x => x.MealType == MealType.Dinner),

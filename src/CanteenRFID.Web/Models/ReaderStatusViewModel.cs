@@ -10,7 +10,7 @@ public class ReaderStatusViewModel
     public bool IsOnline(TimeSpan? threshold = null)
     {
         if (LastSeenUtc is null) return false;
-        var limit = threshold ?? TimeSpan.FromMinutes(2);
+        var limit = threshold ?? TimeSpan.FromSeconds(30);
         return LastSeenUtc.Value >= DateTime.UtcNow.Subtract(limit);
     }
 }

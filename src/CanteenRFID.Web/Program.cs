@@ -74,6 +74,32 @@ var app = builder.Build();
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE Users ADD COLUMN TokenId TEXT");
+    }
+    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 1)
+    {
+        // Column already exists.
+    }
+
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE Stamps ADD COLUMN UserDisplayName TEXT");
+    }
+    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 1)
+    {
+        // Column already exists.
+    }
+
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE Stamps ADD COLUMN UserPersonnelNo TEXT");
+    }
+    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 1)
+    {
+        // Column already exists.
+    }
     await DataSeeder.SeedAsync(db);
     var store = scope.ServiceProvider.GetRequiredService<AdminCredentialStore>();
     var existed = store.SecretExists;
@@ -228,7 +254,7 @@ api.MapGet("/readers/{readerId}/latest-stamp", async (string readerId, [FromQuer
         stamp.TimestampUtc,
         stamp.MealType.ToString(),
         MealLabelHelper.GetMealLabel(stamp.MealType),
-        stamp.User != null ? $"{stamp.User.LastName}, {stamp.User.FirstName}" : null);
+        stamp.UserDisplayName ?? (stamp.User != null ? $"{stamp.User.LastName}, {stamp.User.FirstName}" : null));
 
     return Results.Ok(response);
 }).WithTags("Readers");
@@ -252,7 +278,7 @@ api.MapGet("/readers/{readerId}/latest-stamp-display", async (string readerId, [
         stamp.TimestampUtc,
         stamp.MealType.ToString(),
         MealLabelHelper.GetMealLabel(stamp.MealType),
-        stamp.User != null ? $"{stamp.User.LastName}, {stamp.User.FirstName}" : null);
+        stamp.UserDisplayName ?? (stamp.User != null ? $"{stamp.User.LastName}, {stamp.User.FirstName}" : null));
 
     return Results.Ok(response);
 }).WithTags("Readers");
@@ -276,7 +302,7 @@ api.MapGet("/readers/{readerId}/status-display", async (string readerId, Applica
         lastSeen = lastStamp ?? reader?.LastPingUtc;
     }
 
-    var isOnline = lastSeen.HasValue && lastSeen.Value >= DateTime.UtcNow.AddMinutes(-2);
+    var isOnline = lastSeen.HasValue && lastSeen.Value >= DateTime.UtcNow.AddSeconds(-30);
     return Results.Ok(new { readerId, isOnline, lastSeenUtc = lastSeen });
 }).WithTags("Readers");
 
@@ -285,7 +311,12 @@ api.MapGet("/users", async ([FromQuery] string? search, [FromQuery] bool? active
     var query = db.Users.AsQueryable();
     if (!string.IsNullOrWhiteSpace(search))
     {
-        query = query.Where(u => u.FirstName.Contains(search) || u.LastName.Contains(search) || u.PersonnelNo.Contains(search) || (u.Uid != null && u.Uid.Contains(search)));
+        query = query.Where(u =>
+            u.FirstName.Contains(search) ||
+            u.LastName.Contains(search) ||
+            u.PersonnelNo.Contains(search) ||
+            (u.Uid != null && u.Uid.Contains(search)) ||
+            (u.TokenId != null && u.TokenId.Contains(search)));
     }
 
     if (activeOnly == true)
@@ -551,6 +582,8 @@ public class StampService
             ReaderId = readerId,
             MealType = mealType,
             UserId = user?.Id,
+            UserDisplayName = user != null ? $"{user.FirstName} {user.LastName}" : null,
+            UserPersonnelNo = user?.PersonnelNo,
             CreatedAtUtc = DateTime.UtcNow
         };
         if (reader != null)

@@ -38,11 +38,11 @@ public class ReportsController : Controller
         if (to.HasValue) query = query.Where(s => s.TimestampUtc <= to);
 
         return await query
-            .GroupBy(s => s.User != null ? s.User.PersonnelNo : "Unbekannt")
+            .GroupBy(s => s.UserPersonnelNo ?? (s.User != null ? s.User.PersonnelNo : "Unbekannt"))
             .Select(g => new ConsumptionRow
             {
                 PersonnelNo = g.Key,
-                Name = g.First().User != null ? g.First().User!.FullName : "Unbekannte UID",
+                Name = g.First().UserDisplayName ?? g.First().User?.FullName ?? "Unbekannte UID",
                 Breakfast = g.Count(x => x.MealType == MealType.Breakfast),
                 Lunch = g.Count(x => x.MealType == MealType.Lunch),
                 Dinner = g.Count(x => x.MealType == MealType.Dinner),

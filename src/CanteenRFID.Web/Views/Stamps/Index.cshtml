@@ -69,7 +69,7 @@
                 <td>@s.TimestampUtc.ToString("dd.MM.yyyy HH:mm:ss")</td>
                 <td>@s.TimestampLocal.ToString("dd.MM.yyyy HH:mm:ss")</td>
                 <td>@s.UidRaw</td>
-                <td>@(s.User?.FullName ?? "Unbekannt")</td>
+                <td>@(s.UserDisplayName ?? s.User?.FullName ?? "Unbekannt")</td>
                 <td>@s.ReaderId</td>
                 <td>@MealLabel(s.MealType)</td>
                 <td class="text-end">

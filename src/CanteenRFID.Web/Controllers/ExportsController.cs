@@ -26,11 +26,9 @@ public class ExportsController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Excel(DateTime from, DateTime to)
+    public async Task<IActionResult> Excel(DateTime from, DateTime to, MealType? mealType, Guid? userId)
     {
-        var stamps = await _db.Stamps.Include(s => s.User)
-            .Where(s => s.TimestampUtc >= from && s.TimestampUtc <= to)
-            .ToListAsync();
+        var stamps = await BuildQuery(from, to, mealType, userId).Include(s => s.User).ToListAsync();
 
         using var workbook = new XLWorkbook();
         var summarySheet = workbook.Worksheets.Add("Summary");
@@ -41,18 +39,20 @@ public class ExportsController : Controller
         summarySheet.Cell(1, 5).Value = "Dinner";
         summarySheet.Cell(1, 6).Value = "Snack";
         summarySheet.Cell(1, 7).Value = "Unknown";
+        summarySheet.Cell(1, 8).Value = "Total";
 
-        var grouped = stamps.GroupBy(s => s.User?.PersonnelNo ?? "Unbekannt").ToList();
+        var grouped = stamps.GroupBy(s => s.UserPersonnelNo ?? s.User?.PersonnelNo ?? "Unbekannt").ToList();
         var row = 2;
         foreach (var g in grouped)
         {
             summarySheet.Cell(row, 1).Value = g.Key;
-            summarySheet.Cell(row, 2).Value = g.First().User?.FullName ?? "Unbekannt";
+            summarySheet.Cell(row, 2).Value = g.First().UserDisplayName ?? g.First().User?.FullName ?? "Unbekannt";
             summarySheet.Cell(row, 3).Value = g.Count(x => x.MealType == MealType.Breakfast);
             summarySheet.Cell(row, 4).Value = g.Count(x => x.MealType == MealType.Lunch);
             summarySheet.Cell(row, 5).Value = g.Count(x => x.MealType == MealType.Dinner);
             summarySheet.Cell(row, 6).Value = g.Count(x => x.MealType == MealType.Snack);
             summarySheet.Cell(row, 7).Value = g.Count(x => x.MealType == MealType.Unknown);
+            summarySheet.Cell(row, 8).Value = g.Count();
             row++;
         }
 
@@ -70,7 +70,7 @@ public class ExportsController : Controller
             rawSheet.Cell(rawRow, 1).Value = s.TimestampUtc;
             rawSheet.Cell(rawRow, 2).Value = s.TimestampLocal;
             rawSheet.Cell(rawRow, 3).Value = s.UidRaw;
-            rawSheet.Cell(rawRow, 4).Value = s.User?.FullName ?? "Unbekannt";
+            rawSheet.Cell(rawRow, 4).Value = s.UserDisplayName ?? s.User?.FullName ?? "Unbekannt";
             rawSheet.Cell(rawRow, 5).Value = s.ReaderId;
             rawSheet.Cell(rawRow, 6).Value = s.MealType.ToString();
             rawRow++;
@@ -84,16 +84,14 @@ public class ExportsController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Pdf(DateTime from, DateTime to)
+    public async Task<IActionResult> Pdf(DateTime from, DateTime to, MealType? mealType, Guid? userId)
     {
-        var stamps = await _db.Stamps.Include(s => s.User)
-            .Where(s => s.TimestampUtc >= from && s.TimestampUtc <= to)
-            .ToListAsync();
+        var stamps = await BuildQuery(from, to, mealType, userId).Include(s => s.User).ToListAsync();
 
-        var grouped = stamps.GroupBy(s => s.User?.PersonnelNo ?? "Unbekannt").Select(g => new
+        var grouped = stamps.GroupBy(s => s.UserPersonnelNo ?? s.User?.PersonnelNo ?? "Unbekannt").Select(g => new
         {
             PersonnelNo = g.Key,
-            Name = g.First().User?.FullName ?? "Unbekannt",
+            Name = g.First().UserDisplayName ?? g.First().User?.FullName ?? "Unbekannt",
             Breakfast = g.Count(x => x.MealType == MealType.Breakfast),
             Lunch = g.Count(x => x.MealType == MealType.Lunch),
             Dinner = g.Count(x => x.MealType == MealType.Dinner),
@@ -101,51 +99,115 @@ public class ExportsController : Controller
             Unknown = g.Count(x => x.MealType == MealType.Unknown)
         }).ToList();
 
+        var daily = stamps.GroupBy(s => s.TimestampLocal.Date)
+            .Select(g => new
+            {
+                Date = g.Key,
+                Breakfast = g.Count(x => x.MealType == MealType.Breakfast),
+                Lunch = g.Count(x => x.MealType == MealType.Lunch),
+                Dinner = g.Count(x => x.MealType == MealType.Dinner),
+                Snack = g.Count(x => x.MealType == MealType.Snack),
+                Unknown = g.Count(x => x.MealType == MealType.Unknown)
+            })
+            .OrderBy(g => g.Date)
+            .ToList();
+
         byte[] pdf = Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Margin(20);
                 page.Header().Text($"CanteenRFID Summary {from:d} - {to:d}").FontSize(20).Bold();
-                page.Content().Table(table =>
+                page.Content().Column(col =>
                 {
-                    table.ColumnsDefinition(columns =>
+                    col.Item().Table(table =>
                     {
-                        columns.ConstantColumn(100);
-                        columns.RelativeColumn(2);
-                        columns.RelativeColumn();
-                        columns.RelativeColumn();
-                        columns.RelativeColumn();
-                        columns.RelativeColumn();
-                        columns.RelativeColumn();
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.ConstantColumn(90);
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().Text("Personal").Bold();
+                            header.Cell().Text("Name").Bold();
+                            header.Cell().Text("Breakfast").Bold();
+                            header.Cell().Text("Lunch").Bold();
+                            header.Cell().Text("Dinner").Bold();
+                            header.Cell().Text("Snack").Bold();
+                            header.Cell().Text("Unknown").Bold();
+                        });
+
+                        foreach (var row in grouped)
+                        {
+                            table.Cell().Text(row.PersonnelNo);
+                            table.Cell().Text(row.Name);
+                            table.Cell().Text(row.Breakfast.ToString());
+                            table.Cell().Text(row.Lunch.ToString());
+                            table.Cell().Text(row.Dinner.ToString());
+                            table.Cell().Text(row.Snack.ToString());
+                            table.Cell().Text(row.Unknown.ToString());
+                        }
                     });
 
-                    table.Header(header =>
+                    col.Item().PaddingTop(10).Text("Tagesübersicht").Bold();
+                    col.Item().Table(table =>
                     {
-                        header.Cell().Text("Personal");
-                        header.Cell().Text("Name");
-                        header.Cell().Text("Breakfast");
-                        header.Cell().Text("Lunch");
-                        header.Cell().Text("Dinner");
-                        header.Cell().Text("Snack");
-                        header.Cell().Text("Unknown");
-                    });
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                        });
 
-                    foreach (var row in grouped)
-                    {
-                        table.Cell().Text(row.PersonnelNo);
-                        table.Cell().Text(row.Name);
-                        table.Cell().Text(row.Breakfast.ToString());
-                        table.Cell().Text(row.Lunch.ToString());
-                        table.Cell().Text(row.Dinner.ToString());
-                        table.Cell().Text(row.Snack.ToString());
-                        table.Cell().Text(row.Unknown.ToString());
-                    }
+                        table.Header(header =>
+                        {
+                            header.Cell().Text("Datum").Bold();
+                            header.Cell().Text("Breakfast").Bold();
+                            header.Cell().Text("Lunch").Bold();
+                            header.Cell().Text("Dinner").Bold();
+                            header.Cell().Text("Snack").Bold();
+                            header.Cell().Text("Unknown").Bold();
+                        });
+
+                        foreach (var row in daily)
+                        {
+                            table.Cell().Text(row.Date.ToShortDateString());
+                            table.Cell().Text(row.Breakfast.ToString());
+                            table.Cell().Text(row.Lunch.ToString());
+                            table.Cell().Text(row.Dinner.ToString());
+                            table.Cell().Text(row.Snack.ToString());
+                            table.Cell().Text(row.Unknown.ToString());
+                        }
+                    });
                 });
             });
         }).GeneratePdf();
 
         var filename = $"canteenrfid_{from:yyyyMMdd}_{to:yyyyMMdd}.pdf";
         return File(pdf, "application/pdf", filename);
+    }
+
+    private IQueryable<Core.Models.Stamp> BuildQuery(DateTime from, DateTime to, MealType? mealType, Guid? userId)
+    {
+        var query = _db.Stamps.Where(s => s.TimestampUtc >= from && s.TimestampUtc <= to);
+        if (mealType.HasValue)
+        {
+            query = query.Where(s => s.MealType == mealType);
+        }
+        if (userId.HasValue)
+        {
+            query = query.Where(s => s.UserId == userId);
+        }
+        return query;
     }
 }

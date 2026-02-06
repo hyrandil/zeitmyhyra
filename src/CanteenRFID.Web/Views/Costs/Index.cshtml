@@ -1,0 +1,22 @@
+@model CanteenRFID.Web.Models.MealCostViewModel
+<h2>Kosten</h2>
+@if (TempData["Info"] != null)
+{
+    <div class="alert alert-success">@TempData["Info"]</div>
+}
+<form method="post">
+    @Html.AntiForgeryToken()
+    <div class="mb-3">
+        <label class="form-label">Frühstück (€)</label>
+        <input asp-for="Breakfast" class="form-control" step="0.01" type="number" min="0" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Mittagessen (€)</label>
+        <input asp-for="Lunch" class="form-control" step="0.01" type="number" min="0" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Abendessen (€)</label>
+        <input asp-for="Dinner" class="form-control" step="0.01" type="number" min="0" />
+    </div>
+    <button class="btn btn-primary" type="submit">Speichern</button>
+</form>

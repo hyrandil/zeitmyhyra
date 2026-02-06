@@ -50,5 +50,17 @@ public static class DataSeeder
             });
             await db.SaveChangesAsync();
         }
+
+        var costs = db.Set<MealCost>();
+        if (!await costs.AnyAsync())
+        {
+            costs.AddRange(new[]
+            {
+                new MealCost { MealType = MealType.Breakfast, Cost = 0m },
+                new MealCost { MealType = MealType.Lunch, Cost = 0m },
+                new MealCost { MealType = MealType.Dinner, Cost = 0m }
+            });
+            await db.SaveChangesAsync();
+        }
     }
 }

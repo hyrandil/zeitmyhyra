@@ -14,6 +14,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Reader> Readers => Set<Reader>();
     public DbSet<Stamp> Stamps => Set<Stamp>();
     public DbSet<MealRule> MealRules => Set<MealRule>();
+    public DbSet<MealCost> MealCosts => Set<MealCost>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +41,14 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<Stamp>()
             .Property(s => s.MealType)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<MealCost>()
+            .HasIndex(c => c.MealType)
+            .IsUnique();
+
+        modelBuilder.Entity<MealCost>()
+            .Property(c => c.MealType)
             .HasConversion<string>();
     }
 }

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Linq;
 using CanteenRFID.Core.Models;
 using CanteenRFID.Data.Contexts;
 using CanteenRFID.Web.Models;

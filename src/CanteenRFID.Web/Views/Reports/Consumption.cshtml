@@ -1,10 +1,33 @@
 @model IEnumerable<CanteenRFID.Web.Controllers.ConsumptionRow>
-<h2>Verbrauch pro Person</h2>
-<table class="table table-striped">
-    <thead><tr><th>Personalnr</th><th>Name</th><th>Frühstück</th><th>Mittag</th><th>Abend</th><th>Snack</th><th>Unbekannt</th></tr></thead>
+@{
+    ViewData["Title"] = "Verbrauch pro Person";
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Verbrauch pro Person</h2>
+    <div class="text-muted small">Live-Update bei Filteränderung</div>
+</div>
+<form class="row gy-2 align-items-end mb-3" id="report-filter-form">
+    <div class="col-md-3">
+        <label class="form-label">Von</label>
+        <input type="date" class="form-control" name="from" value="@ViewBag.From" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Bis</label>
+        <input type="date" class="form-control" name="to" value="@ViewBag.To" />
+    </div>
+    <div class="col-md-3">
+        <button class="btn btn-primary" type="submit">Anwenden</button>
+        <button class="btn btn-link" type="button" id="report-reset">Reset</button>
+    </div>
+</form>
+<table class="table table-striped" id="consumption-table">
+    <thead>
+        <tr><th>Personalnr</th><th>Name</th><th>Frühstück</th><th>Mittag</th><th>Abend</th></tr>
+    </thead>
     <tbody>
     @foreach(var r in Model){
-        <tr><td>@r.PersonnelNo</td><td>@r.Name</td><td>@r.Breakfast</td><td>@r.Lunch</td><td>@r.Dinner</td><td>@r.Snack</td><td>@r.Unknown</td></tr>
+        <tr><td>@r.PersonnelNo</td><td>@r.Name</td><td>@r.Breakfast</td><td>@r.Lunch</td><td>@r.Dinner</td></tr>
     }
     </tbody>
 </table>
+<script src="~/js/reports.js"></script>

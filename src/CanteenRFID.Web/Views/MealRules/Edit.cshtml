@@ -1,8 +1,12 @@
 @model MealRule
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    var mealTypes = new[] { MealType.Breakfast, MealType.Lunch, MealType.Dinner };
+}
 <h2>Regel bearbeiten</h2>
 <form method="post">
     <div class="mb-3"><label class="form-label">Name</label><input asp-for="Name" class="form-control" /></div>
-    <div class="mb-3"><label class="form-label">MealType</label><select asp-for="MealType" asp-items="Html.GetEnumSelectList<MealType>()" class="form-select"></select></div>
+    <div class="mb-3"><label class="form-label">MealType</label><select asp-for="MealType" asp-items="new SelectList(mealTypes)" class="form-select"></select></div>
     <div class="row mb-3"><div class="col"><label class="form-label">Start</label><input asp-for="StartTimeLocal" class="form-control" /></div><div class="col"><label class="form-label">Ende</label><input asp-for="EndTimeLocal" class="form-control" /></div></div>
     <div class="mb-3"><label class="form-label">DaysOfWeekMask</label><input asp-for="DaysOfWeekMask" class="form-control" /></div>
     <div class="mb-3"><label class="form-label">Priority</label><input asp-for="Priority" class="form-control" /></div>

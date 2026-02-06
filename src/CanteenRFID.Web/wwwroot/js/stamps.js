@@ -69,7 +69,7 @@
                 <td>${formatDateTime(timestampUtc, 'UTC')}</td>
                 <td>${formatDateTime(timestampLocal, 'Europe/Berlin')}</td>
                 <td>${uid}</td>
-                <td>${stamp.userDisplayName ?? stamp.UserDisplayName ?? (user ? (user.fullName ?? user.FullName ?? '') : 'Unbekannt')}</td>
+                <td>${item.userDisplayName ?? item.UserDisplayName ?? (user ? (user.fullName ?? user.FullName ?? '') : 'Unbekannt')}</td>
                 <td>${readerId}</td>
                 <td>${mealLabel(mealType)}</td>
                 <td class="text-end">

@@ -74,6 +74,10 @@ var app = builder.Build();
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+    // Ensure base schema exists before applying incremental SQLite ALTER statements.
+    await db.Database.EnsureCreatedAsync();
+
     try
     {
         await db.Database.ExecuteSqlRawAsync("ALTER TABLE Users ADD COLUMN TokenId TEXT");

@@ -306,22 +306,7 @@ api.MapGet("/readers/{readerId}/latest-stamp-display", async (string readerId, [
 api.MapGet("/readers/{readerId}/status-display", async (string readerId, ApplicationDbContext db) =>
 {
     var reader = await db.Readers.FirstOrDefaultAsync(r => r.ReaderId == readerId);
-    var lastStamp = await db.Stamps
-        .Where(s => s.ReaderId == readerId)
-        .OrderByDescending(s => s.TimestampUtc)
-        .Select(s => (DateTime?)s.TimestampUtc)
-        .FirstOrDefaultAsync();
-
-    DateTime? lastSeen = null;
-    if (lastStamp.HasValue && reader?.LastPingUtc.HasValue == true)
-    {
-        lastSeen = lastStamp > reader.LastPingUtc ? lastStamp : reader.LastPingUtc;
-    }
-    else
-    {
-        lastSeen = lastStamp ?? reader?.LastPingUtc;
-    }
-
+    var lastSeen = reader?.LastPingUtc;
     var isOnline = lastSeen.HasValue && lastSeen.Value >= DateTime.UtcNow.AddSeconds(-30);
     return Results.Ok(new { readerId, isOnline, lastSeenUtc = lastSeen });
 }).WithTags("Readers");

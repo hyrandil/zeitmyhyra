@@ -165,9 +165,12 @@
 
     tableBody.addEventListener('click', (e) => {
         if (!canDelete) return;
-        const target = e.target;
-        if (!(target instanceof Element)) return;
-        const deleteButton = target.closest('.btn-delete');
+
+        const rawTarget = e.target;
+        const targetElement = rawTarget instanceof Element ? rawTarget : rawTarget?.parentElement;
+        if (!targetElement) return;
+
+        const deleteButton = targetElement.closest('.btn-delete');
         if (!deleteButton) return;
 
         const id = deleteButton.getAttribute('data-id');

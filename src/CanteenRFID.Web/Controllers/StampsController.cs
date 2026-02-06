@@ -25,4 +25,22 @@ public class StampsController : Controller
         ViewBag.MealTypes = new[] { MealType.Breakfast, MealType.Lunch, MealType.Dinner };
         return View(initial);
     }
+
+    [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var stamp = await _db.Stamps.FindAsync(id);
+        if (stamp == null)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
+        _db.Stamps.Remove(stamp);
+        await _db.SaveChangesAsync();
+        TempData["Info"] = "Stempelung gelöscht.";
+        return RedirectToAction(nameof(Index));
+    }
 }
+

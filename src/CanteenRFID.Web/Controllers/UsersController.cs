@@ -16,7 +16,7 @@ public class UsersController : Controller
         _db = db;
     }
 
-    public async Task<IActionResult> Index(string? search = null)
+    public async Task<IActionResult> Index(string? search = null, string? location = null)
     {
         var query = _db.Users.AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
@@ -26,7 +26,12 @@ public class UsersController : Controller
                 u.LastName.Contains(search) ||
                 u.PersonnelNo.Contains(search) ||
                 (u.Uid != null && u.Uid.Contains(search)) ||
-                (u.TokenId != null && u.TokenId.Contains(search)));
+                (u.TokenId != null && u.TokenId.Contains(search)) ||
+                (u.Location != null && u.Location.Contains(search)));
+        }
+        if (!string.IsNullOrWhiteSpace(location))
+        {
+            query = query.Where(u => u.Location != null && u.Location.Contains(location));
         }
         var users = await query.OrderBy(u => u.LastName).ToListAsync();
         return View(users);
@@ -89,6 +94,7 @@ public class UsersController : Controller
         existing.PersonnelNo = user.PersonnelNo;
         existing.Uid = user.Uid;
         existing.TokenId = user.TokenId;
+        existing.Location = user.Location;
         existing.IsActive = user.IsActive;
         await _db.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
@@ -99,11 +105,17 @@ public class UsersController : Controller
     public async Task<IActionResult> Delete(Guid id)
     {
         var user = await _db.Users.FindAsync(id);
-        if (user != null)
+        if (user == null)
         {
-            _db.Users.Remove(user);
-            await _db.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
         }
+
+        var stamps = _db.Stamps.Where(s => s.UserId == id);
+        await stamps.ForEachAsync(s => s.UserId = null);
+
+        _db.Users.Remove(user);
+        await _db.SaveChangesAsync();
+        TempData["Info"] = "Mitarbeiter gelöscht.";
         return RedirectToAction(nameof(Index));
     }
 }

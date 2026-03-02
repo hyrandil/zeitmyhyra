@@ -35,16 +35,17 @@ public class ExportsController : Controller
         var summarySheet = workbook.Worksheets.Add("Summary");
         summarySheet.Cell(1, 1).Value = "Personnel";
         summarySheet.Cell(1, 2).Value = "Name";
-        summarySheet.Cell(1, 3).Value = "Breakfast";
-        summarySheet.Cell(1, 4).Value = "Lunch";
-        summarySheet.Cell(1, 5).Value = "Dinner";
-        summarySheet.Cell(1, 6).Value = "Breakfast Cost";
-        summarySheet.Cell(1, 7).Value = "Lunch Cost";
-        summarySheet.Cell(1, 8).Value = "Dinner Cost";
-        summarySheet.Cell(1, 9).Value = "Breakfast Total";
-        summarySheet.Cell(1, 10).Value = "Lunch Total";
-        summarySheet.Cell(1, 11).Value = "Dinner Total";
-        summarySheet.Cell(1, 12).Value = "Total";
+        summarySheet.Cell(1, 3).Value = "Location";
+        summarySheet.Cell(1, 4).Value = "Breakfast";
+        summarySheet.Cell(1, 5).Value = "Lunch";
+        summarySheet.Cell(1, 6).Value = "Dinner";
+        summarySheet.Cell(1, 7).Value = "Breakfast Cost";
+        summarySheet.Cell(1, 8).Value = "Lunch Cost";
+        summarySheet.Cell(1, 9).Value = "Dinner Cost";
+        summarySheet.Cell(1, 10).Value = "Breakfast Total";
+        summarySheet.Cell(1, 11).Value = "Lunch Total";
+        summarySheet.Cell(1, 12).Value = "Dinner Total";
+        summarySheet.Cell(1, 13).Value = "Total";
 
         var grouped = stamps.GroupBy(s => s.UserPersonnelNo ?? s.User?.PersonnelNo ?? "Unbekannt").ToList();
         var row = 2;
@@ -52,22 +53,24 @@ public class ExportsController : Controller
         {
             summarySheet.Cell(row, 1).Value = g.Key;
             summarySheet.Cell(row, 2).Value = g.First().UserDisplayName ?? g.First().User?.FullName ?? "Unbekannt";
+            var location = g.FirstOrDefault(x => x.User != null && x.User.Location != null)?.User?.Location ?? string.Empty;
             var breakfastCount = g.Count(x => x.MealType == MealType.Breakfast);
             var lunchCount = g.Count(x => x.MealType == MealType.Lunch);
             var dinnerCount = g.Count(x => x.MealType == MealType.Dinner);
-            summarySheet.Cell(row, 3).Value = breakfastCount;
-            summarySheet.Cell(row, 4).Value = lunchCount;
-            summarySheet.Cell(row, 5).Value = dinnerCount;
-            summarySheet.Cell(row, 6).Value = costs.Breakfast;
-            summarySheet.Cell(row, 7).Value = costs.Lunch;
-            summarySheet.Cell(row, 8).Value = costs.Dinner;
+            summarySheet.Cell(row, 3).Value = location;
+            summarySheet.Cell(row, 4).Value = breakfastCount;
+            summarySheet.Cell(row, 5).Value = lunchCount;
+            summarySheet.Cell(row, 6).Value = dinnerCount;
+            summarySheet.Cell(row, 7).Value = costs.Breakfast;
+            summarySheet.Cell(row, 8).Value = costs.Lunch;
+            summarySheet.Cell(row, 9).Value = costs.Dinner;
             var breakfastTotal = breakfastCount * costs.Breakfast;
             var lunchTotal = lunchCount * costs.Lunch;
             var dinnerTotal = dinnerCount * costs.Dinner;
-            summarySheet.Cell(row, 9).Value = breakfastTotal;
-            summarySheet.Cell(row, 10).Value = lunchTotal;
-            summarySheet.Cell(row, 11).Value = dinnerTotal;
-            summarySheet.Cell(row, 12).Value = breakfastTotal + lunchTotal + dinnerTotal;
+            summarySheet.Cell(row, 10).Value = breakfastTotal;
+            summarySheet.Cell(row, 11).Value = lunchTotal;
+            summarySheet.Cell(row, 12).Value = dinnerTotal;
+            summarySheet.Cell(row, 13).Value = breakfastTotal + lunchTotal + dinnerTotal;
             row++;
         }
 
@@ -76,9 +79,10 @@ public class ExportsController : Controller
         rawSheet.Cell(1, 2).Value = "Timestamp Local";
         rawSheet.Cell(1, 3).Value = "UID";
         rawSheet.Cell(1, 4).Value = "User";
-        rawSheet.Cell(1, 5).Value = "Reader";
-        rawSheet.Cell(1, 6).Value = "Meal Type";
-        rawSheet.Cell(1, 7).Value = "Meal Cost";
+        rawSheet.Cell(1, 5).Value = "Location";
+        rawSheet.Cell(1, 6).Value = "Reader";
+        rawSheet.Cell(1, 7).Value = "Meal Type";
+        rawSheet.Cell(1, 8).Value = "Meal Cost";
 
         var rawRow = 2;
         foreach (var s in stamps.OrderBy(s => s.TimestampUtc))
@@ -87,9 +91,10 @@ public class ExportsController : Controller
             rawSheet.Cell(rawRow, 2).Value = s.TimestampLocal;
             rawSheet.Cell(rawRow, 3).Value = s.UidRaw;
             rawSheet.Cell(rawRow, 4).Value = s.UserDisplayName ?? s.User?.FullName ?? "Unbekannt";
-            rawSheet.Cell(rawRow, 5).Value = s.ReaderId;
-            rawSheet.Cell(rawRow, 6).Value = s.MealType.ToString();
-            rawSheet.Cell(rawRow, 7).Value = costs.GetCost(s.MealType);
+            rawSheet.Cell(rawRow, 5).Value = s.User?.Location ?? string.Empty;
+            rawSheet.Cell(rawRow, 6).Value = s.ReaderId;
+            rawSheet.Cell(rawRow, 7).Value = s.MealType.ToString();
+            rawSheet.Cell(rawRow, 8).Value = costs.GetCost(s.MealType);
             rawRow++;
         }
 

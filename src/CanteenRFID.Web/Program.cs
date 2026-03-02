@@ -89,6 +89,15 @@ await using (var scope = app.Services.CreateAsyncScope())
 
     try
     {
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE Users ADD COLUMN Location TEXT");
+    }
+    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 1)
+    {
+        // Column already exists.
+    }
+
+    try
+    {
         await db.Database.ExecuteSqlRawAsync("ALTER TABLE Stamps ADD COLUMN UserDisplayName TEXT");
     }
     catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 1)

@@ -247,7 +247,7 @@
             userName.textContent = stamp.userName || '';
             stampCard.classList.remove('hidden');
             stampCard.classList.add('visible');
-            hintText.textContent = 'Buchung erfasst';
+            hintText.textContent = stamp.statusMessage || 'Buchung erfasst';
 
             hideTimer = setTimeout(() => {
                 stampCard.classList.remove('visible');
@@ -306,7 +306,8 @@
                         showStamp({
                             mealLabel: stamp.mealLabel || stamp.MealLabel,
                             mealType: stamp.mealType || stamp.MealType,
-                            userName: stamp.userName || stamp.UserName
+                            userName: stamp.userName || stamp.UserName,
+                            statusMessage: stamp.statusMessage || stamp.StatusMessage
                         });
                     }
                 } catch (error) {

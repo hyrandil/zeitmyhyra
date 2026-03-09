@@ -51,12 +51,19 @@
         <button class="btn btn-link" type="button" id="btn-clear">Reset</button>
     </div>
 </form>
+@if (canDelete)
+{
+    <form id="bulk-delete-form" method="post" asp-action="DeleteSelected" class="mb-3" onsubmit="return confirm('Ausgewählte Buchungen löschen?');">
+        @Html.AntiForgeryToken()
+        <button class="btn btn-danger btn-sm" type="submit">Ausgewählte löschen</button>
+    </form>
+}
 <div id="stamps-alert" class="d-none"></div>
 <div class="table-responsive">
     <table class="table table-striped table-hover align-middle" id="stamps-table" data-can-delete="@canDelete.ToString().ToLower()">
         <thead class="table-light">
             <tr>
-                <th>Zeit (UTC)</th>
+                <th><input type="checkbox" id="select-all-stamps" /></th>
                 <th>Lokale Zeit</th>
                 <th>UID</th>
                 <th>Person</th>
@@ -69,7 +76,12 @@
         @foreach (var s in Model)
         {
             <tr class="@(s.User == null ? "table-warning" : "")" data-id="@s.Id">
-                <td>@s.TimestampUtc.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                <td>
+                    @if (canDelete)
+                    {
+                        <input type="checkbox" class="stamp-select" name="ids" value="@s.Id" form="bulk-delete-form" />
+                    }
+                </td>
                 <td>@s.TimestampLocal.ToString("dd.MM.yyyy HH:mm:ss")</td>
                 <td>@s.UidRaw</td>
                 <td>@(s.UserDisplayName ?? s.User?.FullName ?? "Unbekannt")</td>
@@ -80,21 +92,11 @@
                     {
                         <a class="btn btn-sm btn-outline-primary" href="/Users?search=@s.UidRaw">Benutzer verknüpfen</a>
                     }
-                    @if (canDelete)
-                    {
-                        <form method="post" asp-action="Delete" asp-route-id="@s.Id" class="d-inline" onsubmit="return confirm('Löschen?');">
-                            <button class="btn btn-sm btn-danger" type="submit">Löschen</button>
-                        </form>
-                    }
                 </td>
             </tr>
         }
         </tbody>
     </table>
 </div>
-
-<form id="stamps-antiforgery" method="post" class="d-none">
-    @Html.AntiForgeryToken()
-</form>
 
 <script src="~/js/stamps.js"></script>

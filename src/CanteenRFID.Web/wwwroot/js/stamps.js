@@ -5,7 +5,6 @@
     const clearBtn = document.getElementById('btn-clear');
     const canDelete = document.getElementById('stamps-table')?.dataset.canDelete === 'true';
     const alertBox = document.getElementById('stamps-alert');
-    const antiForgeryToken = document.querySelector('#stamps-antiforgery input[name="__RequestVerificationToken"]')?.value || '';
 
     const showAlert = (message, type = 'danger') => {
         if (!alertBox) return;
@@ -57,7 +56,6 @@
         tableBody.innerHTML = '';
         items.forEach(item => {
             const id = item.id ?? item.Id;
-            const timestampUtc = item.timestampUtc ?? item.TimestampUtc;
             const timestampLocal = item.timestampLocal ?? item.TimestampLocal;
             const uid = item.uidRaw ?? item.UidRaw ?? '';
             const user = item.user ?? item.User;
@@ -67,7 +65,7 @@
             row.dataset.id = id;
             if (!user) row.classList.add('table-warning');
             row.innerHTML = `
-                <td>${formatDateTime(timestampUtc, 'UTC')}</td>
+                <td>${canDelete && id ? `<input type="checkbox" class="stamp-select" name="ids" value="${id}" form="bulk-delete-form" />` : ""}</td>
                 <td>${formatDateTime(timestampLocal, 'Europe/Berlin')}</td>
                 <td>${uid}</td>
                 <td>${item.userDisplayName ?? item.UserDisplayName ?? (user ? (user.fullName ?? user.FullName ?? '') : 'Unbekannt')}</td>
@@ -75,7 +73,7 @@
                 <td>${mealLabel(mealType)}</td>
                 <td class="text-end">
                     ${!user ? `<a class="btn btn-sm btn-outline-primary" href="/Users?search=${encodeURIComponent(uid)}">Benutzer verknüpfen</a>` : ''}
-                    ${canDelete && id ? `<form method="post" action="/Stamps/Delete/${id}" class="d-inline" onsubmit="return confirm('Löschen?');"><input type="hidden" name="__RequestVerificationToken" value="${antiForgeryToken}" /><button class="btn btn-sm btn-danger" type="submit">Löschen</button></form>` : ''}
+
                 </td>
             `;
             tableBody.appendChild(row);
@@ -108,6 +106,18 @@
         load();
     });
 
+    const selectAll = document.getElementById('select-all-stamps');
+    selectAll?.addEventListener('change', () => {
+        document.querySelectorAll('.stamp-select').forEach((cb) => { cb.checked = selectAll.checked; });
+    });
+
+    tableBody.addEventListener('change', (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLInputElement) || !target.classList.contains('stamp-select')) return;
+        if (!selectAll) return;
+        const checkboxes = Array.from(document.querySelectorAll('.stamp-select'));
+        selectAll.checked = checkboxes.length > 0 && checkboxes.every((cb) => cb.checked);
+    });
 
     load();
     setInterval(load, 4000);

@@ -68,6 +68,7 @@ builder.Services.AddSingleton<IApiKeyHasher, Sha256ApiKeyHasher>();
 builder.Services.AddScoped<MealRuleEngineFactory>();
 builder.Services.AddScoped<StampService>();
 builder.Services.AddScoped<ApiKeyValidator>();
+builder.Services.AddSingleton<ReaderDisplayFeedbackStore>();
 
 var app = builder.Build();
 
@@ -194,8 +195,13 @@ api.MapPost("/stamps", async ([FromBody] StampRequest request, HttpContext conte
         return Results.Unauthorized();
     }
 
-    var saved = await stampService.AddStampAsync(request.Uid, request.ReaderId ?? reader.ReaderId, request.TimestampUtc);
-    return Results.Created($"/api/v1/stamps/{saved.Id}", saved);
+    var result = await stampService.AddStampAsync(request.Uid, request.ReaderId ?? reader.ReaderId, request.TimestampUtc);
+    if (!result.Created || result.Stamp is null)
+    {
+        return Results.Ok(new { created = false, statusMessage = result.StatusMessage ?? "Buchung schon vorhanden" });
+    }
+
+    return Results.Created($"/api/v1/stamps/{result.Stamp.Id}", new { created = true, stamp = result.Stamp, statusMessage = result.StatusMessage });
 }).WithTags("Stamps");
 
 api.MapGet("/stamps", async ([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] Guid? userId, [FromQuery] string? uid, [FromQuery] string? readerId, [FromQuery] MealType? mealType, [FromQuery] string? search, ApplicationDbContext db) =>
@@ -288,8 +294,20 @@ api.MapGet("/readers/{readerId}/latest-stamp", async (string readerId, [FromQuer
     return Results.Ok(response);
 }).WithTags("Readers");
 
-api.MapGet("/readers/{readerId}/latest-stamp-display", async (string readerId, [FromQuery] DateTime? since, ApplicationDbContext db) =>
+api.MapGet("/readers/{readerId}/latest-stamp-display", async (string readerId, [FromQuery] DateTime? since, ApplicationDbContext db, ReaderDisplayFeedbackStore feedbackStore) =>
 {
+    var feedback = feedbackStore.Get(readerId);
+    if (feedback is not null && (!since.HasValue || feedback.TimestampUtc > since.Value))
+    {
+        return Results.Ok(new ReaderDisplayStampResponse(
+            feedback.Id,
+            feedback.TimestampUtc,
+            feedback.MealType,
+            feedback.MealLabel,
+            feedback.UserName,
+            feedback.StatusMessage));
+    }
+
     var query = db.Stamps.Include(s => s.User).Where(s => s.ReaderId == readerId);
     if (since.HasValue)
     {
@@ -508,7 +526,7 @@ public record ReaderUpdateRequest(string ReaderId, string? Name, string? Locatio
 
 public record ReaderPingRequest(string ReaderId);
 
-public record ReaderDisplayStampResponse(Guid Id, DateTime TimestampUtc, string MealType, string MealLabel, string? UserName);
+public record ReaderDisplayStampResponse(Guid Id, DateTime TimestampUtc, string MealType, string MealLabel, string? UserName, string? StatusMessage = null);
 
 public static class MealLabelHelper
 {
@@ -570,15 +588,17 @@ public class StampService
     private readonly ApplicationDbContext _db;
     private readonly MealRuleEngineFactory _engineFactory;
     private readonly IConfiguration _configuration;
+    private readonly ReaderDisplayFeedbackStore _feedbackStore;
 
-    public StampService(ApplicationDbContext db, MealRuleEngineFactory engineFactory, IConfiguration configuration)
+    public StampService(ApplicationDbContext db, MealRuleEngineFactory engineFactory, IConfiguration configuration, ReaderDisplayFeedbackStore feedbackStore)
     {
         _db = db;
         _engineFactory = engineFactory;
         _configuration = configuration;
+        _feedbackStore = feedbackStore;
     }
 
-    public async Task<Stamp> AddStampAsync(string uid, string readerId, DateTime? timestampUtc)
+    public async Task<StampAddResult> AddStampAsync(string uid, string readerId, DateTime? timestampUtc)
     {
         var tzOptions = _configuration.GetSection("Timezone").Get<TimezoneOptions>() ?? new TimezoneOptions();
         var tz = TimeZoneInfo.FindSystemTimeZoneById(tzOptions.Windows ?? "W. Europe Standard Time");
@@ -588,6 +608,33 @@ public class StampService
         var mealType = engine.ResolveMealType(local);
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Uid == uid);
         var reader = await _db.Readers.FirstOrDefaultAsync(r => r.ReaderId == readerId);
+        if (user != null && (mealType == MealType.Breakfast || mealType == MealType.Lunch || mealType == MealType.Dinner))
+        {
+            var alreadyBooked = await _db.Stamps.AnyAsync(s =>
+                s.UserId == user.Id &&
+                s.MealType == mealType &&
+                s.TimestampLocal.Date == local.Date);
+
+            if (alreadyBooked)
+            {
+                if (reader != null)
+                {
+                    reader.LastPingUtc = DateTime.UtcNow;
+                    await _db.SaveChangesAsync();
+                }
+
+                _feedbackStore.Set(readerId, new ReaderDisplayFeedback(
+                    Guid.NewGuid(),
+                    utc,
+                    mealType.ToString(),
+                    MealLabelHelper.GetMealLabel(mealType),
+                    $"{user.FirstName} {user.LastName}",
+                    "Buchung schon vorhanden"));
+
+                return new StampAddResult(false, null, "Buchung schon vorhanden");
+            }
+        }
+
         var stamp = new Stamp
         {
             TimestampUtc = utc,
@@ -600,13 +647,66 @@ public class StampService
             UserPersonnelNo = user?.PersonnelNo,
             CreatedAtUtc = DateTime.UtcNow
         };
+
         if (reader != null)
         {
             reader.LastPingUtc = DateTime.UtcNow;
         }
+
         _db.Stamps.Add(stamp);
         await _db.SaveChangesAsync();
-        return stamp;
+
+        _feedbackStore.Set(readerId, new ReaderDisplayFeedback(
+            stamp.Id,
+            stamp.TimestampUtc,
+            stamp.MealType.ToString(),
+            MealLabelHelper.GetMealLabel(stamp.MealType),
+            stamp.UserDisplayName ?? (user != null ? $"{user.FirstName} {user.LastName}" : null),
+            "Buchung erfasst"));
+
+        return new StampAddResult(true, stamp, "Buchung erfasst");
+    }
+}
+
+public readonly record struct StampAddResult(bool Created, Stamp? Stamp, string? StatusMessage);
+
+public record ReaderDisplayFeedback(Guid Id, DateTime TimestampUtc, string MealType, string MealLabel, string? UserName, string StatusMessage);
+
+public class ReaderDisplayFeedbackStore
+{
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, ReaderDisplayFeedback> _items = new(StringComparer.OrdinalIgnoreCase);
+
+    public void Set(string readerId, ReaderDisplayFeedback feedback)
+    {
+        _items[readerId] = feedback;
+    }
+
+    public ReaderDisplayFeedback? Get(string readerId)
+    {
+        if (_items.TryGetValue(readerId, out var feedback))
+        {
+            return feedback;
+        }
+
+        return null;
+    }
+}
+
+public class ApiKeyValidator
+{
+    private readonly ApplicationDbContext _db;
+    private readonly IApiKeyHasher _hasher;
+
+    public ApiKeyValidator(ApplicationDbContext db, IApiKeyHasher hasher)
+    {
+        _db = db;
+        _hasher = hasher;
+    }
+
+    public async Task<Reader?> ValidateAsync(string apiKey)
+    {
+        var hash = _hasher.Hash(apiKey);
+        return await _db.Readers.FirstOrDefaultAsync(r => r.ApiKeyHash == hash && r.IsActive);
     }
 }
 

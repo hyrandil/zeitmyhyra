@@ -77,8 +77,7 @@ public class StampsController : Controller
     [HttpPost]
     [Authorize(Policy = "AdminOnly")]
     [ValidateAntiForgeryToken]
-    [ActionName("DeleteSelected")]
-    public async Task<IActionResult> DeleteSelectedPost(List<Guid> ids)
+    public async Task<IActionResult> DeleteSelectedBulk(List<Guid> ids)
     {
         if (ids is null || ids.Count == 0)
         {

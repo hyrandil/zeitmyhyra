@@ -77,6 +77,29 @@ public class StampsController : Controller
     [HttpPost]
     [Authorize(Policy = "AdminOnly")]
     [ValidateAntiForgeryToken]
+    [ActionName("DeleteSelected")]
+    public async Task<IActionResult> DeleteSelectedPost(List<Guid> ids)
+    {
+        if (ids is null || ids.Count == 0)
+        {
+            TempData["Info"] = "Keine Buchungen ausgewählt.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var stamps = await _db.Stamps.Where(s => ids.Contains(s.Id)).ToListAsync();
+        if (stamps.Count > 0)
+        {
+            _db.Stamps.RemoveRange(stamps);
+            await _db.SaveChangesAsync();
+        }
+
+        TempData["Info"] = $"{stamps.Count} Buchung(en) gelöscht.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [Authorize(Policy = "AdminOnly")]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteSelected(List<Guid> ids)
     {
         if (ids is null || ids.Count == 0)

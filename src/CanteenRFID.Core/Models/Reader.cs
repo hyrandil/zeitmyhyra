@@ -15,10 +15,15 @@ public class Reader
     [MaxLength(200)]
     public string? Location { get; set; }
 
+    [MaxLength(200)]
+    public string? DisplayPassword { get; set; }
+
     [Required, MaxLength(256)]
     public string ApiKeyHash { get; set; } = string.Empty;
 
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public DateTime? LastPingUtc { get; set; }
 }

@@ -1,24 +1,162 @@
 @model IEnumerable<CanteenRFID.Core.Models.Stamp>
-<h2>Stempelungen</h2>
-<form class="row gy-2 align-items-end mb-3" method="get">
-    <div class="col-md-3"><label class="form-label">Von</label><input type="datetime-local" class="form-control" name="from" /></div>
-    <div class="col-md-3"><label class="form-label">Bis</label><input type="datetime-local" class="form-control" name="to" /></div>
-    <div class="col-md-3"><label class="form-label">Suche</label><input class="form-control" name="search" placeholder="UID/Name/Reader" value="@Context.Request.Query["search"]" /></div>
-    <div class="col-md-2"><label class="form-label">Meal Type</label><select class="form-select" name="mealType"><option value="">Alle</option>@foreach(var m in Enum.GetValues(typeof(MealType))){<option value="@m">@m</option>}</select></div>
-    <div class="col-auto"><button class="btn btn-primary" type="submit">Aktualisieren</button></div>
+@using CanteenRFID.Core.Enums
+@{
+    ViewData["Title"] = "Stempelungen";
+    var canDelete = User.IsInRole("Admin");
+    var defaultManualReaderId = (string?)ViewBag.DefaultManualReaderId ?? "MANUAL-WEB";
+    string MealLabel(MealType meal) => meal switch
+    {
+        MealType.Breakfast => "Frühstück",
+        MealType.Lunch => "Mittagessen",
+        MealType.Dinner => "Abendessen",
+        _ => "Unbekannt"
+    };
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Stempelungen</h2>
+    <div class="text-muted small">Letzte Aktualisierung: <span id="last-refresh">-</span></div>
+</div>
+@if (TempData["Info"] != null)
+{
+    <div class="alert alert-success">@TempData["Info"]</div>
+}
+
+@if (canDelete)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Manuelle Buchung</h5>
+            <form method="post" asp-action="CreateManual" class="row g-2 align-items-end">
+                @Html.AntiForgeryToken()
+                <div class="col-md-3">
+                    <label class="form-label">UID</label>
+                    <input class="form-control" name="Uid" required maxlength="200" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Datum/Uhrzeit (lokal)</label>
+                    <input type="datetime-local" class="form-control" name="TimestampLocal" required value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Reader ID</label>
+                    <input class="form-control" name="ReaderId" value="@defaultManualReaderId" maxlength="100" />
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-success" type="submit">Buchung hinzufügen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<form class="row gy-2 align-items-end mb-3" id="filter-form">
+    <div class="col-md-2">
+        <label class="form-label">Von</label>
+        <input type="datetime-local" class="form-control" name="from" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Bis</label>
+        <input type="datetime-local" class="form-control" name="to" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Name</label>
+        <input class="form-control" name="name" placeholder="Name, Vorname" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Personalnummer</label>
+        <input class="form-control" name="personnelNo" placeholder="z.B. 12345" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">UID</label>
+        <input class="form-control" name="uid" placeholder="UID" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Meal Type</label>
+        <select class="form-select" name="mealType">
+            <option value="">Alle</option>
+            @foreach (MealType m in ViewBag.MealTypes)
+            {
+                <option value="@m">@MealLabel(m)</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Reader</label>
+        <input class="form-control" name="readerId" placeholder="READER-01" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Seitengröße</label>
+        <select class="form-select" name="pageSize">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <button class="btn btn-primary" type="submit">Filtern</button>
+        <button class="btn btn-link" type="button" id="btn-clear">Reset</button>
+    </div>
 </form>
-<table class="table table-striped table-sm">
-    <thead><tr><th>Zeit (UTC)</th><th>Lokale Zeit</th><th>UID</th><th>Person</th><th>Reader</th><th>Meal</th></tr></thead>
-    <tbody>
-    @foreach(var s in Model){
-        <tr class="@(s.User == null ? "table-warning" : "")">
-            <td>@s.TimestampUtc</td>
-            <td>@s.TimestampLocal</td>
-            <td>@s.UidRaw</td>
-            <td>@(s.User?.FullName ?? "Unbekannt")</td>
-            <td>@s.ReaderId</td>
-            <td>@s.MealType</td>
-        </tr>
-    }
-    </tbody>
-</table>
+@if (canDelete)
+{
+    <form id="bulk-delete-form" method="post" asp-action="DeleteSelectedBulk" class="mb-3" onsubmit="return confirm('Ausgewählte Buchungen löschen?');">
+        @Html.AntiForgeryToken()
+        <button class="btn btn-danger btn-sm" type="submit">Ausgewählte löschen</button>
+    </form>
+}
+<div id="stamps-alert" class="d-none"></div>
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle" id="stamps-table" data-can-delete="@canDelete.ToString().ToLower()">
+        <thead class="table-light">
+            <tr>
+                <th>@if (canDelete) { <input type="checkbox" id="select-all-stamps" /> }</th>
+                <th>Lokale Zeit</th>
+                <th>UID</th>
+                <th>Person</th>
+                <th>Personalnr.</th>
+                <th>Reader</th>
+                <th>Meal</th>
+                <th class="text-end">Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var s in Model)
+        {
+            <tr class="@(s.User == null ? "table-warning" : "")" data-id="@s.Id">
+                <td>
+                    @if (canDelete)
+                    {
+                        <input type="checkbox" class="stamp-select" name="ids" value="@s.Id" form="bulk-delete-form" />
+                    }
+                </td>
+                <td>@s.TimestampLocal.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                <td>@s.UidRaw</td>
+                <td>@(s.UserDisplayName ?? s.User?.FullName ?? "Unbekannt")</td>
+                <td>@(s.UserPersonnelNo ?? s.User?.PersonnelNo ?? "-")</td>
+                <td>@s.ReaderId</td>
+                <td>@MealLabel(s.MealType)</td>
+                <td class="text-end">
+                    @if (s.User == null)
+                    {
+                        <a class="btn btn-sm btn-outline-primary" href="/Users?search=@s.UidRaw">Benutzer verknüpfen</a>
+                    }
+                    @if (canDelete)
+                    {
+                        <form method="post" asp-action="Delete" asp-route-id="@s.Id" class="d-inline" onsubmit="return confirm('Löschen?');">
+                            @Html.AntiForgeryToken()
+                            <button class="btn btn-sm btn-danger" type="submit">Löschen</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mt-3" id="pagination-controls">
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-prev-page">← Vorherige</button>
+    <span class="small text-muted" id="page-info">Seite 1 von 1</span>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-next-page">Nächste →</button>
+</div>
+
+<script src="~/js/stamps.js"></script>

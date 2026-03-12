@@ -21,14 +21,61 @@ public class StampsController : Controller
         _configuration = configuration;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(
+        DateTime? from,
+        DateTime? to,
+        string? name,
+        string? personnelNo,
+        string? uid,
+        string? readerId,
+        MealType? mealType,
+        int page = 1,
+        int pageSize = 25)
     {
-        var initial = await _db.Stamps.Include(s => s.User)
+        page = page <= 0 ? 1 : page;
+        pageSize = pageSize <= 0 ? 25 : Math.Min(pageSize, 100);
+
+        var query = _db.Stamps.Include(s => s.User).AsQueryable();
+        if (from.HasValue) query = query.Where(s => s.TimestampLocal >= from.Value);
+        if (to.HasValue) query = query.Where(s => s.TimestampLocal <= to.Value);
+        if (!string.IsNullOrWhiteSpace(uid)) query = query.Where(s => s.UidRaw.Contains(uid));
+        if (!string.IsNullOrWhiteSpace(readerId)) query = query.Where(s => s.ReaderId.Contains(readerId));
+        if (mealType.HasValue) query = query.Where(s => s.MealType == mealType.Value);
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var n = name.Trim();
+            query = query.Where(s =>
+                (s.UserDisplayName != null && s.UserDisplayName.Contains(n)) ||
+                (s.User != null && ((s.User.FirstName + " " + s.User.LastName).Contains(n) || (s.User.LastName + " " + s.User.FirstName).Contains(n))));
+        }
+        if (!string.IsNullOrWhiteSpace(personnelNo))
+        {
+            var pNo = personnelNo.Trim();
+            query = query.Where(s =>
+                (s.UserPersonnelNo != null && s.UserPersonnelNo.Contains(pNo)) ||
+                (s.User != null && s.User.PersonnelNo.Contains(pNo)));
+        }
+
+        var total = await query.CountAsync();
+
+        var initial = await query
             .OrderByDescending(s => s.TimestampUtc)
-            .Take(25)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
+
         ViewBag.MealTypes = new[] { MealType.Breakfast, MealType.Lunch, MealType.Dinner };
         ViewBag.DefaultManualReaderId = _configuration["ManualStamp:DefaultReaderId"] ?? "MANUAL-WEB";
+        ViewBag.Page = page;
+        ViewBag.PageSize = pageSize;
+        ViewBag.TotalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+        ViewBag.From = from;
+        ViewBag.To = to;
+        ViewBag.Name = name;
+        ViewBag.PersonnelNo = personnelNo;
+        ViewBag.Uid = uid;
+        ViewBag.ReaderId = readerId;
+        ViewBag.MealType = mealType;
         return View(initial);
     }
 
@@ -86,27 +133,6 @@ public class StampsController : Controller
             .ToList();
 
         if (ids.Count == 0)
-        {
-            TempData["Info"] = "Keine Buchungen ausgewählt.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        var stamps = await _db.Stamps.Where(s => ids.Contains(s.Id)).ToListAsync();
-        if (stamps.Count > 0)
-        {
-            _db.Stamps.RemoveRange(stamps);
-            await _db.SaveChangesAsync();
-        }
-
-        TempData["Info"] = $"{stamps.Count} Buchung(en) gelöscht.";
-        return RedirectToAction(nameof(Index));
-    }
-    [HttpPost]
-    [Authorize(Policy = "AdminOnly")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteSelected(List<Guid> ids)
-    {
-        if (ids is null || ids.Count == 0)
         {
             TempData["Info"] = "Keine Buchungen ausgewählt.";
             return RedirectToAction(nameof(Index));

@@ -77,31 +77,15 @@ public class StampsController : Controller
     [HttpPost]
     [Authorize(Policy = "AdminOnly")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteSelectedBatchV3(List<Guid> ids)
+    public async Task<IActionResult> DeleteSelectedFromFormV4([FromForm(Name = "ids")] List<string>? idValues)
     {
-        if (ids is null || ids.Count == 0)
-        {
-            TempData["Info"] = "Keine Buchungen ausgewählt.";
-            return RedirectToAction(nameof(Index));
-        }
+        var ids = (idValues ?? new List<string>())
+            .Select(v => Guid.TryParse(v, out var parsed) ? parsed : Guid.Empty)
+            .Where(v => v != Guid.Empty)
+            .Distinct()
+            .ToList();
 
-        var stamps = await _db.Stamps.Where(s => ids.Contains(s.Id)).ToListAsync();
-        if (stamps.Count > 0)
-        {
-            _db.Stamps.RemoveRange(stamps);
-            await _db.SaveChangesAsync();
-        }
-
-        TempData["Info"] = $"{stamps.Count} Buchung(en) gelöscht.";
-        return RedirectToAction(nameof(Index));
-    }
-
-    [HttpPost]
-    [Authorize(Policy = "AdminOnly")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteSelectedBatchV3(List<Guid> ids)
-    {
-        if (ids is null || ids.Count == 0)
+        if (ids.Count == 0)
         {
             TempData["Info"] = "Keine Buchungen ausgewählt.";
             return RedirectToAction(nameof(Index));

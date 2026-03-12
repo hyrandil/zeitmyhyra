@@ -98,7 +98,7 @@
 </form>
 @if (canDelete)
 {
-    <form id="bulk-delete-form" method="post" asp-action="DeleteSelectedBatchV3" class="mb-3" onsubmit="return confirm('Ausgewählte Buchungen löschen?');">
+    <form id="bulk-delete-form" method="post" asp-action="DeleteSelectedFromFormV4" class="mb-3" onsubmit="return confirm('Ausgewählte Buchungen löschen?');">
         @Html.AntiForgeryToken()
         <button class="btn btn-danger btn-sm" type="submit">Ausgewählte löschen</button>
     </form>

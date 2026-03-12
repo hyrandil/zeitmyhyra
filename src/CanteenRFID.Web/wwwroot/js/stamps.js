@@ -12,6 +12,7 @@
 
     let currentPage = 1;
     let totalPages = 1;
+    let lastItemsCount = 0;
     const selectedIds = new Set();
 
     const showAlert = (message, type = 'danger') => {
@@ -48,6 +49,12 @@
         return map[value] ?? value;
     };
 
+
+    const currentPageSize = () => {
+        const raw = form?.elements?.namedItem('pageSize')?.value;
+        const parsed = Number.parseInt(raw || '25', 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 25;
+    };
     const queryFromForm = () => {
         const data = new FormData(form);
         const params = new URLSearchParams();
@@ -61,7 +68,11 @@
     const updatePaginationUi = () => {
         if (pageInfo) pageInfo.textContent = `Seite ${currentPage} von ${totalPages}`;
         if (prevBtn) prevBtn.disabled = currentPage <= 1;
-        if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+
+        const optimisticHasNext = lastItemsCount >= currentPageSize();
+        if (nextBtn) {
+            nextBtn.disabled = !(currentPage < totalPages || optimisticHasNext);
+        }
     };
 
     const renderRows = (items) => {
@@ -115,8 +126,23 @@
 
             const data = await response.json();
             const items = data.items ?? data.Items ?? [];
-            currentPage = data.page ?? data.Page ?? currentPage;
-            totalPages = Math.max(1, data.totalPages ?? data.TotalPages ?? 1);
+            const serverPage = data.page ?? data.Page ?? currentPage;
+            const serverTotalPages = Math.max(1, data.totalPages ?? data.TotalPages ?? 1);
+
+            currentPage = serverPage;
+            lastItemsCount = items.length;
+            totalPages = Math.max(serverTotalPages, currentPage);
+            if (lastItemsCount >= currentPageSize() && totalPages <= currentPage) {
+                totalPages = currentPage + 1;
+            }
+
+            if (currentPage > 1 && lastItemsCount === 0) {
+                currentPage -= 1;
+                totalPages = Math.max(1, currentPage);
+                await load();
+                return;
+            }
+
             updatePaginationUi();
             renderRows(items);
         } catch {

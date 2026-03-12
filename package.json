@@ -1,0 +1,10 @@
+{
+  "name": "canteenrfid",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "dotnet build CanteenRFID.sln",
+    "start:web": "dotnet run --project src/CanteenRFID.Web/CanteenRFID.Web.csproj",
+    "test": "dotnet test CanteenRFID.sln"
+  }
+}

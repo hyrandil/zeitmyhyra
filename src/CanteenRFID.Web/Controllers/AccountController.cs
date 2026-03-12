@@ -1,21 +1,24 @@
 using System.Security.Claims;
+using CanteenRFID.Web.Models;
+using CanteenRFID.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace CanteenRFID.Web.Controllers;
 
 public class AccountController : Controller
 {
-    private readonly IOptionsMonitor<AdminOptions> _adminOptions;
+    private readonly AdminCredentialStore _credentialStore;
 
-    public AccountController(IOptionsMonitor<AdminOptions> adminOptions)
+    public AccountController(AdminCredentialStore credentialStore)
     {
-        _adminOptions = adminOptions;
+        _credentialStore = credentialStore;
     }
 
     [HttpGet]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Login(string? returnUrl = null)
     {
         ViewBag.ReturnUrl = returnUrl;
@@ -23,15 +26,15 @@ public class AccountController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string username, string password, string? returnUrl = null)
     {
-        var opts = _adminOptions.CurrentValue;
-        if (username == opts.Username && password == opts.Password)
+        if (await _credentialStore.ValidateAsync(username, password))
         {
             var claims = new List<Claim>
             {
                 new(ClaimTypes.Name, username),
-                new(ClaimTypes.Role, opts.Role)
+                new(ClaimTypes.Role, AdminCredentialStore.AdminRole)
             };
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
@@ -42,9 +45,43 @@ public class AccountController : Controller
         return View();
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+        Response.Headers["Pragma"] = "no-cache";
+        Response.Headers["Expires"] = "0";
         return RedirectToAction("Login");
+    }
+
+    [Authorize(Roles = AdminCredentialStore.AdminRole)]
+    [HttpGet]
+    public IActionResult ChangePassword()
+    {
+        return View(new ChangePasswordViewModel());
+    }
+
+    [Authorize(Roles = AdminCredentialStore.AdminRole)]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var isValid = await _credentialStore.ValidateAsync(User.Identity?.Name ?? string.Empty, model.CurrentPassword);
+        if (!isValid)
+        {
+            ModelState.AddModelError(string.Empty, "Aktuelles Passwort ist ungültig.");
+            return View(model);
+        }
+
+        await _credentialStore.ChangePasswordAsync(model.NewPassword);
+        TempData["Success"] = "Passwort wurde geändert.";
+        return RedirectToAction("Index", "Home");
     }
 }

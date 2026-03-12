@@ -244,11 +244,19 @@ api.MapGet("/stamps", async (
     }
 
     var total = await query.CountAsync();
-    var items = await query
+    var paged = await query
         .OrderByDescending(s => s.TimestampUtc)
         .Skip((page - 1) * pageSize)
-        .Take(pageSize)
+        .Take(pageSize + 1)
         .ToListAsync();
+
+    var hasMore = paged.Count > pageSize;
+    var items = hasMore ? paged.Take(pageSize).ToList() : paged;
+    var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+    if (hasMore && totalPages <= page)
+    {
+        totalPages = page + 1;
+    }
 
     return Results.Ok(new
     {
@@ -256,7 +264,8 @@ api.MapGet("/stamps", async (
         page,
         pageSize,
         total,
-        totalPages = (int)Math.Ceiling(total / (double)pageSize)
+        totalPages,
+        hasMore
     });
 }).RequireAuthorization().WithTags("Stamps");
 

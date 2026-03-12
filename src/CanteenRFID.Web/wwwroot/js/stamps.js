@@ -13,6 +13,7 @@
     let currentPage = 1;
     let totalPages = 1;
     let lastItemsCount = 0;
+    let hasMorePages = false;
     const selectedIds = new Set();
 
     const showAlert = (message, type = 'danger') => {
@@ -69,7 +70,7 @@
         if (pageInfo) pageInfo.textContent = `Seite ${currentPage} von ${totalPages}`;
         if (prevBtn) prevBtn.disabled = currentPage <= 1;
 
-        const optimisticHasNext = lastItemsCount >= currentPageSize();
+        const optimisticHasNext = hasMorePages || lastItemsCount >= currentPageSize();
         if (nextBtn) {
             nextBtn.disabled = !(currentPage < totalPages || optimisticHasNext);
         }
@@ -128,11 +129,12 @@
             const items = data.items ?? data.Items ?? [];
             const serverPage = data.page ?? data.Page ?? currentPage;
             const serverTotalPages = Math.max(1, data.totalPages ?? data.TotalPages ?? 1);
+            hasMorePages = Boolean(data.hasMore ?? data.HasMore ?? false);
 
             currentPage = serverPage;
             lastItemsCount = items.length;
             totalPages = Math.max(serverTotalPages, currentPage);
-            if (lastItemsCount >= currentPageSize() && totalPages <= currentPage) {
+            if ((hasMorePages || lastItemsCount >= currentPageSize()) && totalPages <= currentPage) {
                 totalPages = currentPage + 1;
             }
 

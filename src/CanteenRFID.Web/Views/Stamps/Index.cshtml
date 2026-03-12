@@ -4,7 +4,7 @@
     ViewData["Title"] = "Stempelungen";
     var canDelete = User.IsInRole("Admin");
     var defaultManualReaderId = (string?)ViewBag.DefaultManualReaderId ?? "MANUAL-WEB";
-    var page = (int?)ViewBag.Page ?? 1;
+    var currentPage = (int?)ViewBag.Page ?? 1;
     var totalPages = (int?)ViewBag.TotalPages ?? 1;
     var pageSize = (int?)ViewBag.PageSize ?? 25;
     string MealLabel(MealType meal) => meal switch
@@ -162,11 +162,11 @@
     <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-next-page">Nächste →</button>
 </div>
 <div class="d-flex justify-content-between align-items-center mt-2">
-    <a class="btn btn-outline-secondary btn-sm @(page <= 1 ? "disabled" : "")"
-       href="@Url.Action("Index", new { from = ViewBag.From, to = ViewBag.To, name = ViewBag.Name, personnelNo = ViewBag.PersonnelNo, uid = ViewBag.Uid, readerId = ViewBag.ReaderId, mealType = ViewBag.MealType, page = Math.Max(1, page - 1), pageSize })">← Vorherige (Server)</a>
-    <span class="small text-muted">Server-Seite @page von @totalPages</span>
-    <a class="btn btn-outline-secondary btn-sm @(page >= totalPages ? "disabled" : "")"
-       href="@Url.Action("Index", new { from = ViewBag.From, to = ViewBag.To, name = ViewBag.Name, personnelNo = ViewBag.PersonnelNo, uid = ViewBag.Uid, readerId = ViewBag.ReaderId, mealType = ViewBag.MealType, page = page + 1, pageSize })">Nächste (Server) →</a>
+    <a class="btn btn-outline-secondary btn-sm @(currentPage <= 1 ? "disabled" : "")"
+       href="@Url.Action("Index", new { from = ViewBag.From, to = ViewBag.To, name = ViewBag.Name, personnelNo = ViewBag.PersonnelNo, uid = ViewBag.Uid, readerId = ViewBag.ReaderId, mealType = ViewBag.MealType, page = Math.Max(1, currentPage - 1), pageSize })">← Vorherige (Server)</a>
+    <span class="small text-muted">Server-Seite @currentPage von @totalPages</span>
+    <a class="btn btn-outline-secondary btn-sm @(currentPage >= totalPages ? "disabled" : "")"
+       href="@Url.Action("Index", new { from = ViewBag.From, to = ViewBag.To, name = ViewBag.Name, personnelNo = ViewBag.PersonnelNo, uid = ViewBag.Uid, readerId = ViewBag.ReaderId, mealType = ViewBag.MealType, page = currentPage + 1, pageSize })">Nächste (Server) →</a>
 </div>
 
 <script src="~/js/stamps.js"></script>

@@ -1,18 +1,25 @@
 @model IEnumerable<User>
 <h2>Benutzer</h2>
-<form class="row mb-3" method="get">
-    <div class="col"><input class="form-control" name="search" placeholder="Suche" value="@Context.Request.Query["search"]" /></div>
+@if (TempData["Info"] != null)
+{
+    <div class="alert alert-success">@TempData["Info"]</div>
+}
+<form class="row mb-3 g-2" method="get">
+    <div class="col-md-5"><input class="form-control" name="search" placeholder="Suche" value="@Context.Request.Query["search"]" /></div>
+    <div class="col-md-3"><input class="form-control" name="location" placeholder="Standort" value="@Context.Request.Query["location"]" /></div>
     <div class="col-auto"><button class="btn btn-primary" type="submit">Filtern</button></div>
     <div class="col-auto"><a class="btn btn-success" href="/Users/Create">Neu</a></div>
 </form>
 <table class="table table-striped">
-    <thead><tr><th>Name</th><th>Personalnr</th><th>UID</th><th>Aktiv</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Personalnr</th><th>Standort</th><th>UID</th><th>Token-ID</th><th>Aktiv</th><th></th></tr></thead>
     <tbody>
     @foreach(var u in Model){
         <tr>
             <td>@u.FullName</td>
             <td>@u.PersonnelNo</td>
+            <td>@u.Location</td>
             <td>@u.Uid</td>
+            <td>@u.TokenId</td>
             <td>@(u.IsActive ? "Ja" : "Nein")</td>
             <td>
                 <a class="btn btn-sm btn-secondary" href="/Users/Edit/@u.Id">Bearbeiten</a>

@@ -15,6 +15,12 @@ public class User
     [Required, MaxLength(50)]
     public string PersonnelNo { get; set; } = string.Empty;
 
+    [MaxLength(100)]
+    public string? TokenId { get; set; }
+
+    [MaxLength(150)]
+    public string? Location { get; set; }
+
     [MaxLength(200)]
     public string? Uid { get; set; }
 

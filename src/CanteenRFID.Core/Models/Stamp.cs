@@ -18,6 +18,12 @@ public class Stamp
 
     public User? User { get; set; }
 
+    [MaxLength(200)]
+    public string? UserDisplayName { get; set; }
+
+    [MaxLength(50)]
+    public string? UserPersonnelNo { get; set; }
+
     [Required, MaxLength(100)]
     public string ReaderId { get; set; } = string.Empty;
 

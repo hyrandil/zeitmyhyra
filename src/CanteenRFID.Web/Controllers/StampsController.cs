@@ -148,4 +148,6 @@ public class StampsController : Controller
         TempData["Info"] = $"{stamps.Count} Buchung(en) gelöscht.";
         return RedirectToAction(nameof(Index));
     }
+
 }
+

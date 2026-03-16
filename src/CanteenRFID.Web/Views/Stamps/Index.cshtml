@@ -156,17 +156,12 @@
     </table>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mt-3" id="pagination-controls">
-    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-prev-page">← Vorherige</button>
-    <span class="small text-muted" id="page-info">Seite 1 von 1</span>
-    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-next-page">Nächste →</button>
-</div>
 <div class="d-flex justify-content-between align-items-center mt-2">
     <a class="btn btn-outline-secondary btn-sm @(currentPage <= 1 ? "disabled" : "")"
-       href="@Url.Action("Index", new { from = ViewBag.From, to = ViewBag.To, name = ViewBag.Name, personnelNo = ViewBag.PersonnelNo, uid = ViewBag.Uid, readerId = ViewBag.ReaderId, mealType = ViewBag.MealType, page = Math.Max(1, currentPage - 1), pageSize })">← Vorherige (Server)</a>
-    <span class="small text-muted">Server-Seite @currentPage von @totalPages</span>
+       href="@Url.Action("Index", new { from = ViewBag.From, to = ViewBag.To, name = ViewBag.Name, personnelNo = ViewBag.PersonnelNo, uid = ViewBag.Uid, readerId = ViewBag.ReaderId, mealType = ViewBag.MealType, page = Math.Max(1, currentPage - 1), pageSize })">← Vorherige</a>
+    <span class="small text-muted">Seite @currentPage von @totalPages</span>
     <a class="btn btn-outline-secondary btn-sm @(currentPage >= totalPages ? "disabled" : "")"
-       href="@Url.Action("Index", new { from = ViewBag.From, to = ViewBag.To, name = ViewBag.Name, personnelNo = ViewBag.PersonnelNo, uid = ViewBag.Uid, readerId = ViewBag.ReaderId, mealType = ViewBag.MealType, page = currentPage + 1, pageSize })">Nächste (Server) →</a>
+       href="@Url.Action("Index", new { from = ViewBag.From, to = ViewBag.To, name = ViewBag.Name, personnelNo = ViewBag.PersonnelNo, uid = ViewBag.Uid, readerId = ViewBag.ReaderId, mealType = ViewBag.MealType, page = currentPage + 1, pageSize })">Nächste →</a>
 </div>
 
 <script src="~/js/stamps.js"></script>

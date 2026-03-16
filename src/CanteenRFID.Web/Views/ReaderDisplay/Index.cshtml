@@ -218,7 +218,7 @@
                 <div id="mealLabel" class="meal-label">Frühstück</div>
                 <div id="userName" class="user-name"></div>
                 <div id="statusIcon" class="checkmark" aria-hidden="true">✔</div>
-                <div class="stamp-subtitle">Stempelung erfasst</div>
+                <div id="stampSubtitle" class="stamp-subtitle">Stempelung erfasst</div>
             </div>
             <div id="offlineBanner" class="offline-banner hidden">
                 <div class="offline-title">Offline</div>
@@ -237,6 +237,7 @@
         const mealLabel = document.getElementById('mealLabel');
         const userName = document.getElementById('userName');
         const statusIcon = document.getElementById('statusIcon');
+        const stampSubtitle = document.getElementById('stampSubtitle');
         const setupForm = document.getElementById('setupForm');
         const readerSelect = document.getElementById('readerSelect');
         const hintText = document.querySelector('.status-hint');
@@ -255,6 +256,9 @@
             mealLabel.textContent = stamp.mealLabel || stamp.mealType || 'Unbekannt';
             userName.textContent = stamp.userName || '';
             statusIcon.textContent = isError ? '✖' : '✔';
+            stampSubtitle.textContent = isError
+                ? 'Benutzer nicht gefunden - bitte erneut versuchen'
+                : 'Stempelung erfasst';
             stampCard.classList.toggle('error', isError);
             stampCard.classList.remove('hidden');
             stampCard.classList.add('visible');
